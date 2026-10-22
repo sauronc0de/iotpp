@@ -20,12 +20,14 @@ _run_completion()
     local entry
     for entry in "$path"/*/; do
         [[ -d "$entry" ]] || continue
+        [[ "$entry" == "$path"/.* ]] && continue
         options+=("$(basename "$entry")")
     done
 
     # Find scripts
     for entry in "$path"/*.sh; do
         [[ -f "$entry" ]] || continue
+        [[ "$entry" == "$path"/.* ]] && continue
         options+=("$(basename "$entry" .sh)")
     done
 

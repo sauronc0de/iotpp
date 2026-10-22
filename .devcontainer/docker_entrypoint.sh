@@ -23,7 +23,8 @@ IDF_INIT='[[ -n "${IDF_PYTHON_ENV_PATH:-}" ]] || source /opt/esp/idf/export.sh >
 echo "$IDF_INIT" >> "$BASHRC"
 
 # Enable Bash autocompletion
-COMPLETION_FILE="$TOOLS_DIR/utilities/completion.bash"
+sed -i '\|/tools/utilities/completion.bash|d' "$BASHRC"
+COMPLETION_FILE="$TOOLS_DIR/.utilities/completion.bash"
 COMPLETION_LINE="source \"$COMPLETION_FILE\""
 
 grep -qxF "$COMPLETION_LINE" "$BASHRC" ||

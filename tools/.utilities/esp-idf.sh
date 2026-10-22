@@ -15,5 +15,5 @@ fi
 run_idf() {
     idf.py -C "$PROJECT_DIR" -B "$BUILD_DIR" --preset target-analyzer \
         -D APP_NAME=analyzer -D IDF_TARGET=esp32 \
-        -D "SDKCONFIG=$BUILD_DIR/sdkconfig" "$@"
+        -D "SDKCONFIG=$PROJECT_DIR/config/build/sdkconfig" "$@"
 }
