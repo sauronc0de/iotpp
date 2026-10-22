@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+TOOLS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if (( $# == 0 )); then
+    echo "Usage: run <category> <command> [arguments...]"
+    exit 1
+fi
+
+# Find the script from the supplied path
+args=("$@")
+
+for ((i=${#args[@]}; i>=1; i--)); do
+    path=$(IFS=/; echo "${args[*]:0:i}")
+
+    # Reject absolute paths and traversal
+    if [[ "$path" == /* || "$path" == *..* ]]; then
+        echo "Invalid command path" >&2
+        exit 1
+    fi
+
+    script="$TOOLS_DIR/$path.sh"
+
+    if [[ -f "$script" ]]; then
+        exec bash "$script" "${args[@]:i}"
+    fi
+done
+
+echo "Unknown command: $*" >&2
+exit 1

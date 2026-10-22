@@ -1,0 +1,31 @@
+{
+  "name": "iotpp",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "remoteUser": "ubuntu",
+  "remoteEnv": { "PATH": "${containerWorkspaceFolder}/tools:${containerEnv:PATH}"},
+  "workspaceFolder": "/workspaces/iotpp",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/iotpp,type=bind",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cpptools",
+        "ms-vscode.cmake-tools",
+        "mhutchie.git-graph"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  },
+  "postCreateCommand": "chmod +x .devcontainer/docker_entrypoint.sh && .devcontainer/docker_entrypoint.sh",
+  "runArgs": [
+    "--privileged",
+    "--device=/dev/ttyUSB0:/dev/ttyUSB0"
+  ],
+  "mounts": [
+    "source=${localEnv:HOME}/.local/share/opencode,target=/home/ubuntu/.local/share/opencode,type=bind"
+  ]
+}
+

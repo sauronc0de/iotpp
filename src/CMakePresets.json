@@ -1,0 +1,21 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "target-analyzer",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "IDF_TARGET": "esp32",
+        "APP_NAME": "analyzer",
+        "SDKCONFIG": "${sourceDir}/build/target-analyzer/sdkconfig"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "target-analyzer",
+      "configurePreset": "target-analyzer"
+    }
+  ]
+}
