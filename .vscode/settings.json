@@ -1,4 +1,4 @@
 {
-    "cmake.sourceDirectory": "/workspaces/iotpp/src"
-
+    "cmake.sourceDirectory": "/workspaces/iotpp/src",
+    "editor.formatOnSave": true
 }

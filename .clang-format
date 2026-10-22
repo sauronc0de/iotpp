@@ -1,0 +1,12 @@
+BasedOnStyle: Microsoft
+
+IndentWidth: 2
+ColumnLimit: 0
+AlignAfterOpenBracket: Align
+SpaceBeforeParens: Never
+SortIncludes: false
+UseTab: Never
+AllowShortIfStatementsOnASingleLine: true
+AllowShortBlocksOnASingleLine: true
+AllowShortLoopsOnASingleLine: true
+AllowShortFunctionsOnASingleLine: All
