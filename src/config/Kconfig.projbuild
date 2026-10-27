@@ -1,4 +1,4 @@
-menu "Analyzer WiFi and UDP"
+menu "Analyzer WiFi and DEX"
 
     config ANALYZER_WIFI_SSID
         string "WiFi SSID"
@@ -10,20 +10,9 @@ menu "Analyzer WiFi and UDP"
         help
             Leave empty for an open network.
 
-    config ANALYZER_UDP_HOST
-        string "Destination IPv4 address"
-        default "192.168.1.100"
-        help
-            IPv4 address of the computer receiving the UDP messages.
-
     config ANALYZER_UDP_PORT
-        int "Destination UDP port"
+        int "DEX UDP listen port"
         range 1 65535
-        default 3333
-
-    config ANALYZER_UDP_INTERVAL_MS
-        int "Message interval (milliseconds)"
-        range 100 3600000
-        default 1000
+        default 4444
 
 endmenu

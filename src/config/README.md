@@ -19,7 +19,7 @@ a configurar les credencials WiFi. Els fitxers derivats de compilació, com
 `sdkconfig.h` i `sdkconfig.cmake`, es generen a `src/build/target-analyzer/config/`.
 
 En un clon nou, `sdkconfig.defaults` estableix la destinació UDP
-`192.168.42.34:3333` i l'interval de `1000` ms. Només cal introduir l'SSID i
+`192.168.42.34:4444` i l'interval de `1000` ms. Només cal introduir l'SSID i
 la contrasenya a **Analyzer WiFi and UDP** de `menuconfig`, sempre que el
 receptor mantingui aquesta IP. Els valors locals ja desats a `build/sdkconfig`
 tenen prioritat sobre els de `sdkconfig.defaults`.

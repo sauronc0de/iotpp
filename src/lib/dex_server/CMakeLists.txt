@@ -1,0 +1,5 @@
+add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/../dex" "${CMAKE_CURRENT_BINARY_DIR}/dex")
+add_library(dex_server STATIC dex_server.cpp)
+target_include_directories(dex_server PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_compile_features(dex_server PUBLIC cxx_std_17)
+target_link_libraries(dex_server PUBLIC dex)

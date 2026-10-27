@@ -14,3 +14,7 @@ set(EXTRA_COMPONENT_DIRS
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
 project(${APP_NAME} VERSION 0.0.0)
+
+string(REPLACE "." "," firmware_version "${PROJECT_VERSION}")
+idf_component_get_property(app_component ${APP_NAME} COMPONENT_LIB)
+target_compile_definitions(${app_component} PRIVATE "FIRMWARE_VERSION=${firmware_version}")

@@ -25,7 +25,7 @@ Al menú **Analyzer WiFi and UDP**, configura:
   Deixa la contrasenya buida si la xarxa és oberta.
 - **Destination IPv4 address**: l'adreça IPv4 de l'ordinador receptor
   (`192.168.42.34` en un clon nou, definida a `sdkconfig.defaults`).
-- **Destination UDP port**: el port del receptor (per defecte, `3333`).
+- **Destination UDP port**: el port del receptor (per defecte, `4444`).
 - **Message interval**: l'interval entre missatges (per defecte, `1000` ms).
 
 La configuració es desa a `src/config/build/sdkconfig`, exclòs de Git. Es conserva
@@ -45,7 +45,7 @@ idf.py -B build/target-analyzer -p /dev/ttyUSB0 flash monitor
 A l'ordinador receptor, connectat a una xarxa accessible des de l'ESP32:
 
 ```sh
-nc -u -l 3333
+nc -u -l 4444
 ```
 
 Permet el trànsit UDP entrant al port seleccionat si hi ha un tallafoc.
