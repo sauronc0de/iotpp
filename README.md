@@ -6,11 +6,25 @@
 run esp32 build   # Build firmware
 run esp32 erase   # Erase all flash (asks for confirmation)
 run esp32 flash   # Flash firmware
+run dex build     # Build the native Linux DEX client
+run dex client    # Build incrementally and query Info, Status and Config
 ```
 
 Default port: `/dev/ttyUSB0`. Override it with `ESPPORT=/dev/ttyUSB1 run esp32 flash`.
 
 ## Analyzer DEX listener
+
+The native Linux C++ client links `lib/dex` and prints decoded enums using
+`magic_enum`. See [`src/app/dex-client`](src/app/dex-client/README.md).
+
+```sh
+run dex build
+run dex client                                 # Same as all; builds first
+run dex client info
+run dex client status
+run dex client config
+run dex client all 192.168.41.252 --port 4444
+```
 
 The analyzer receives binary DEX requests on UDP port `4444` (configurable) and
 replies to the sender's IP and port using the raw little-endian structs in `dex.hpp`.
