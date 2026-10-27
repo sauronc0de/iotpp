@@ -1,2 +1,2 @@
 # Shared firmware settings; WiFi credentials are configured locally.
-CONFIG_ANALYZER_UDP_PORT=4444
+CONFIG_SENTINEL_UDP_PORT=4444

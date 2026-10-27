@@ -1,16 +1,16 @@
-menu "Analyzer WiFi and DEX"
+menu "Sentinel WiFi and DEX"
 
-    config ANALYZER_WIFI_SSID
+    config SENTINEL_WIFI_SSID
         string "WiFi SSID"
         default ""
 
-    config ANALYZER_WIFI_PASSWORD
+    config SENTINEL_WIFI_PASSWORD
         string "WiFi password"
         default ""
         help
             Leave empty for an open network.
 
-    config ANALYZER_UDP_PORT
+    config SENTINEL_UDP_PORT
         int "DEX UDP listen port"
         range 1 65535
         default 4444

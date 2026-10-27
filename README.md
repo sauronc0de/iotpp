@@ -12,7 +12,7 @@ run dex client    # Build incrementally and query Info, Status and Config
 
 Default port: `/dev/ttyUSB0`. Override it with `ESPPORT=/dev/ttyUSB1 run esp32 flash`.
 
-## Analyzer DEX listener
+## Sentinel DEX listener
 
 The native Linux C++ client links `lib/dex` and prints decoded enums using
 `magic_enum`. See [`src/app/dex-client`](src/app/dex-client/README.md).
@@ -26,7 +26,7 @@ run dex client config
 run dex client all 192.168.41.252 --port 4444
 ```
 
-The analyzer receives binary DEX requests on UDP port `4444` (configurable) and
+The sentinel receives binary DEX requests on UDP port `4444` (configurable) and
 replies to the sender's IP and port using the raw little-endian structs in `dex.hpp`.
 
 Query the device from the devcontainer using Bash, `timeout`, `dd` and `od`:

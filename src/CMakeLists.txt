@@ -1,5 +1,17 @@
 cmake_minimum_required(VERSION 3.22)
-set(APP_NAME "analyzer" CACHE STRING "Application to build")
+set(APP_NAME "sentinel" CACHE STRING "Application to build")
+set(DEVICE_PROFILE "sentinel" CACHE STRING "Device profile from devices/")
+if(NOT DEVICE_PROFILE MATCHES "^[a-zA-Z0-9_]+$" OR
+   NOT EXISTS "${CMAKE_SOURCE_DIR}/devices/${DEVICE_PROFILE}.cmake")
+    message(FATAL_ERROR "Unknown device profile: ${DEVICE_PROFILE}")
+endif()
+include("${CMAKE_SOURCE_DIR}/devices/${DEVICE_PROFILE}.cmake")
+set(DEVICE_TASKS "AUTO" CACHE STRING "Enabled device tasks: AUTO or semicolon-separated names")
+if(DEVICE_TASKS STREQUAL "AUTO")
+    set(DEVICE_TASKS "${DEVICE_DEFAULT_TASKS}")
+endif()
+list(REMOVE_DUPLICATES DEVICE_TASKS)
+message(STATUS "Device profile: ${DEVICE_PROFILE}; tasks: ${DEVICE_TASKS}")
 set(SDKCONFIG "${CMAKE_SOURCE_DIR}/config/build/sdkconfig" CACHE FILEPATH "Local project configuration")
 set(SDKCONFIG_DEFAULTS "${CMAKE_SOURCE_DIR}/config/sdkconfig.defaults" CACHE STRING "Shared project defaults")
 
@@ -12,6 +24,7 @@ set(EXTRA_COMPONENT_DIRS
 
 # ESP-IDF build system
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+idf_build_set_property(IOTPP_DEVICE_TASKS "${DEVICE_TASKS}")
 
 project(${APP_NAME} VERSION 0.0.0)
 

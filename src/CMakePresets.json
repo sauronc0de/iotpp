@@ -2,20 +2,21 @@
   "version": 3,
   "configurePresets": [
     {
-      "name": "target-analyzer",
+      "name": "target-sentinel",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
         "IDF_TARGET": "esp32",
-        "APP_NAME": "analyzer",
+        "APP_NAME": "sentinel",
+        "DEVICE_PROFILE": "sentinel",
         "SDKCONFIG": "${sourceDir}/config/build/sdkconfig"
       }
     }
   ],
   "buildPresets": [
     {
-      "name": "target-analyzer",
-      "configurePreset": "target-analyzer"
+      "name": "target-sentinel",
+      "configurePreset": "target-sentinel"
     }
   ]
 }

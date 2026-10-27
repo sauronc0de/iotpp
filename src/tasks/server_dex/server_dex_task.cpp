@@ -1,3 +1,5 @@
+#include "server_dex_task.hpp"
+
 #include "dex_server.hpp"
 #include "esp_err.h"
 #include "esp_log.h"
@@ -8,9 +10,10 @@
 #include "udp.h"
 #include "wifi.h"
 
-extern "C" void app_main()
+namespace
 {
-  ESP_ERROR_CHECK(wifi::initialize(CONFIG_ANALYZER_WIFI_SSID, CONFIG_ANALYZER_WIFI_PASSWORD));
+void server_dex_task(void *)
+{
   const dex::Server server(dex::Version{FIRMWARE_VERSION});
   udp::Server transport;
   // Keep one extra byte so truncated oversized datagrams are still rejected.
@@ -21,7 +24,7 @@ extern "C" void app_main()
   while(true)
   {
     wifi::wait_connected();
-    if(transport.initialize(CONFIG_ANALYZER_UDP_PORT) != ESP_OK)
+    if(transport.initialize(CONFIG_SENTINEL_UDP_PORT) != ESP_OK)
     {
       vTaskDelay(pdMS_TO_TICKS(1000));
       continue;
@@ -41,7 +44,7 @@ extern "C" void app_main()
       const auto result = server.process({request, size}, response, sizeof(response));
       if(result.error != dex::Error::None)
       {
-        ESP_LOGE("analyzer", "Cannot encode DEX reply: 0x%08lx", static_cast<unsigned long>(result.error));
+        ESP_LOGE("sentinel", "Cannot encode DEX reply: 0x%08lx", static_cast<unsigned long>(result.error));
         continue;
       }
       if(result.responseSize == 0)
@@ -56,4 +59,12 @@ extern "C" void app_main()
     transport.close();
     vTaskDelay(pdMS_TO_TICKS(1000));
   }
+}
+} // namespace
+
+esp_err_t start_server_dex_task()
+{
+  const auto result = xTaskCreate(
+      server_dex_task, "server_dex", 4096, nullptr, 5, nullptr);
+  return result == pdPASS ? ESP_OK : ESP_ERR_NO_MEM;
 }

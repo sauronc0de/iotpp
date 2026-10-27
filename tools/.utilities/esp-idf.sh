@@ -2,7 +2,7 @@
 
 # Shared project settings for build, flash and monitor, independent of cwd.
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../src" && pwd)"
-BUILD_DIR="$PROJECT_DIR/build/target-analyzer"
+BUILD_DIR="$PROJECT_DIR/build/target-sentinel"
 
 if ! command -v idf.py >/dev/null 2>&1; then
     if [[ ! -f "${IDF_PATH:-/opt/esp/idf}/export.sh" ]]; then
@@ -13,7 +13,7 @@ if ! command -v idf.py >/dev/null 2>&1; then
 fi
 
 run_idf() {
-    idf.py -C "$PROJECT_DIR" -B "$BUILD_DIR" --preset target-analyzer \
-        -D APP_NAME=analyzer -D IDF_TARGET=esp32 \
+    idf.py -C "$PROJECT_DIR" -B "$BUILD_DIR" --preset target-sentinel \
+        -D APP_NAME=sentinel -D IDF_TARGET=esp32 \
         -D "SDKCONFIG=$PROJECT_DIR/config/build/sdkconfig" "$@"
 }
