@@ -1,56 +1,52 @@
 #pragma once
 
 #include <array>
-
 #include "dex_peripheral.hpp"
 
 namespace dex::Pikachu
 {
+inline constexpr std::size_t BasicChannelCount = 3;
+
 #pragma pack(push, 1)
-
-enum class MonitoringFlags : std::uint32_t
+struct BasicChannelSample
 {
-  None = 0,
-  Voltage = 1UL << 0,
-  Current = 1UL << 1,
-  Power = 1UL << 2,
-  Energy = 1UL << 3,
-  PowerFactor = 1UL << 4,
-  Frequency = 1UL << 5,
-  ReactivePower = 1UL << 6,
-  PeakVoltage = 1UL << 7,
-  PeakCurrent = 1UL << 8,
-
-  All = (1UL << 9) - 1
+  std::uint16_t current;     // 0.01 A per unit
+  std::uint16_t peakCurrent; // 0.01 A per unit
+  std::int16_t power;        // 1 W per unit, signed
+  std::int16_t powerFactor;  // 0.001 per unit
+  double energy;             // Wh accumulated during this ESP32 session, signed
 };
 
-struct ChannelData
+struct BasicSample
 {
-  float current; // A
-  float voltage; // V
-  float power;   // W
-  double energy; // Wh
+  std::uint32_t timestamp;   // Unix UTC seconds at acquisition start
+  std::uint16_t frequency;   // 0.01 Hz per unit
+  std::uint16_t voltage;     // 0.1 V per unit, shared by all three channels
+  std::uint16_t peakVoltage; // 0.1 V per unit
+  std::array<BasicChannelSample, BasicChannelCount> channels;
 };
 
-struct MonitoringData
+// Delivery metadata is generated from FIFO state, not stored in each sample.
+struct MonitoringPublication
 {
-  std::uint32_t timestamp; // Unix UTC seconds
-  std::array<ChannelData, 3> channels;
+  std::uint32_t session;
+  std::uint32_t sequence;
+  BasicSample sample;
 };
 
 struct ConfigData : dex::peripheral::ConfigData
 {
-  MonitoringFlags fields{MonitoringFlags::All};
 };
-
 struct InfoData : dex::peripheral::InfoData
 {
   std::uint8_t type = 25;
 };
-
 struct StatusData : dex::peripheral::StatusData
 {
 };
-
 #pragma pack(pop)
+
+static_assert(sizeof(BasicChannelSample) == 16);
+static_assert(sizeof(BasicSample) == 58);
+static_assert(sizeof(MonitoringPublication) == 66);
 } // namespace dex::Pikachu

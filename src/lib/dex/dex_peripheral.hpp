@@ -9,6 +9,14 @@ namespace dex::peripheral
 
 #pragma pack(push, 1)
 
+// Peripheral commands/publications carry the instance ID before their payload.
+template <typename T>
+struct AddressedData
+{
+  std::uint8_t peripheralId;
+  T data;
+};
+
 enum class PeripheralCommandId : std::uint8_t
 {
   Status = static_cast<std::uint8_t>(CommandId::PeripheralCmd), //* Return peripheral Status

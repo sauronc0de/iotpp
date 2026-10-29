@@ -1,0 +1,28 @@
+dependencies:
+  idf:
+    source:
+      type: idf
+    version: 6.1.0
+  rbamp:
+    component_hash: 5b79b46477217535937ab0df26676484e1712ef3ebf1305f919406aa518b791e
+    dependencies:
+    - name: idf
+      version: '>=5.2'
+    source:
+      git: https://github.com/rb-amp/rbamp-esp-idf.git
+      path: .
+      type: git
+    targets:
+    - esp32
+    - esp32s2
+    - esp32s3
+    - esp32c2
+    - esp32c3
+    - esp32c6
+    - esp32h2
+    version: e9a2fbddd9c532a33588e4ac30feb62f10370ec5
+direct_dependencies:
+- rbamp
+manifest_hash: 35d33bff77421ed0fb0f1536ad459a3cea70d82f87ac5f51b13f2ba37235e8d3
+target: esp32
+version: 3.0.0

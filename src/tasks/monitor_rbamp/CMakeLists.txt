@@ -1,0 +1,7 @@
+list(APPEND device_task_sources "${CMAKE_CURRENT_LIST_DIR}/monitor_rbamp_task.cpp")
+list(APPEND device_task_include_dirs "${CMAKE_CURRENT_LIST_DIR}")
+list(APPEND device_task_requires esp_timer esp_system esp_driver_gptimer heap freertos)
+list(APPEND device_task_libraries monitoring udp)
+set(device_task_wifi ON)
+string(APPEND device_task_headers "#include \"monitor_rbamp_task.hpp\"\n")
+string(APPEND device_task_startup "  ESP_ERROR_CHECK(start_monitor_rbamp_task());\n")

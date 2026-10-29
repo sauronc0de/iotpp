@@ -91,4 +91,9 @@ void wait_connected()
 {
   xEventGroupWaitBits(events, CONNECTED_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
 }
+
+bool is_connected()
+{
+  return events != nullptr && (xEventGroupGetBits(events) & CONNECTED_BIT) != 0;
+}
 } // namespace wifi

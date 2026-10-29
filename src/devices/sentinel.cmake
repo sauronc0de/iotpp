@@ -1,2 +1,2 @@
 # Default tasks for the sentinel device. Override with -DDEVICE_TASKS=...
-set(DEVICE_DEFAULT_TASKS server_dex)
+set(DEVICE_DEFAULT_TASKS server_dex monitor_rbamp)

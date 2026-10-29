@@ -16,3 +16,69 @@ menu "Sentinel WiFi and DEX"
         default 4444
 
 endmenu
+
+menu "rbAmp Pikachu monitoring"
+
+    config RBAMP_MONITOR_SDA_GPIO
+        int "I2C SDA GPIO"
+        range 0 33
+        default 21
+
+    config RBAMP_MONITOR_SCL_GPIO
+        int "I2C SCL GPIO"
+        range 0 33
+        default 22
+
+    config RBAMP_MONITOR_I2C_PORT
+        int "I2C controller"
+        range 0 1
+        default 0
+
+    config RBAMP_MONITOR_ADDRESS
+        hex "rbAmp 7-bit I2C address"
+        range 0x08 0x77
+        default 0x50
+
+    config RBAMP_MONITOR_CT_MODEL
+        int "SCT-013 model code (-1 preserves device configuration)"
+        range -1 255
+        default -1
+        help
+            Use the model code from the rbAmp sensor registry. An unconfigured
+            module needs an explicit model. Factory-paired sensors are preserved;
+            selecting an SCT-013 model for those modules is rejected.
+
+    config RBAMP_MONITOR_PERIPHERAL_ID
+        int "Pikachu peripheral instance ID"
+        range 0 255
+        default 0
+
+    config RBAMP_MONITOR_SAMPLE_PERIOD_MS
+        int "Sample period (ms)"
+        range 1000 60000
+        default 1000
+        help
+            Every successful sample is retained for up to one hour until ACKed.
+            The fixed three-channel BASIC format uses 62 bytes per FIFO entry.
+            At 1 Hz, the one-hour FIFO needs 223262 bytes including one spare
+            entry. Startup reports insufficient RAM and the free/largest block.
+
+    config RBAMP_MONITOR_PUBLISH_PERIOD_MS
+        int "Publication period (ms)"
+        range 1000 3600000
+        default 10000
+
+    config RBAMP_MONITOR_HOST
+        string "Monitoring receiver hostname or IPv4 (empty disables sending)"
+        default ""
+
+    config RBAMP_MONITOR_PORT
+        int "Monitoring receiver UDP port"
+        range 1 65535
+        default 4444
+
+    config RBAMP_MONITOR_NTP_SERVER
+        string "Internet NTP server for initial UTC and hourly resynchronization"
+        default "pool.ntp.org"
+
+endmenu

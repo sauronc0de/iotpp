@@ -15,11 +15,9 @@ foreach(task IN LISTS DEVICE_TASKS)
     include("${CMAKE_CURRENT_LIST_DIR}/${task}/CMakeLists.txt")
 endforeach()
 
-list(REMOVE_DUPLICATES device_task_requires)
-list(REMOVE_DUPLICATES device_task_libraries)
 
 if(device_task_wifi)
-    list(APPEND device_task_requires wifi)
+    list(APPEND device_task_libraries wifi)
     string(APPEND device_task_headers "#include \"wifi.h\"\n#include \"sdkconfig.h\"\n")
     # Initialize shared networking once, before starting any task.
     set(device_task_startup

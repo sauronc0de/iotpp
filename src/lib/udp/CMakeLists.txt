@@ -1,5 +1,2 @@
-idf_component_register(
-    SRCS "udp.cpp"
-    INCLUDE_DIRS "include"
-    REQUIRES esp_common lwip
-)
+add_library(udp STATIC udp.cpp udp_async.cpp)
+target_include_directories(udp PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")

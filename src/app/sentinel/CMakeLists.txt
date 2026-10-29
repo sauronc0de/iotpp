@@ -12,10 +12,4 @@ idf_component_register(
     PRIV_REQUIRES ${device_task_requires}
     KCONFIG_PROJBUILD "${CMAKE_CURRENT_LIST_DIR}/../../config/Kconfig.projbuild"
 )
-
-foreach(library IN LISTS device_task_libraries)
-    if(NOT TARGET ${library})
-        add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/../../lib/${library}" "${CMAKE_CURRENT_BINARY_DIR}/${library}")
-    endif()
-    target_link_libraries(${COMPONENT_LIB} PRIVATE ${library})
-endforeach()
+target_link_libraries(${COMPONENT_LIB} PRIVATE ${device_task_libraries})
