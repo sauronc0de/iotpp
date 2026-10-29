@@ -22,12 +22,10 @@ public:
   AsyncClient(const AsyncClient &) = delete;
   AsyncClient &operator=(const AsyncClient &) = delete;
   esp_err_t initialize(const char *host, std::uint16_t port);
-  // Use a fresh source port for the next exchange so a delayed header-only
-  // reply from a previous exchange cannot confirm a different message.
-  esp_err_t new_exchange();
   bool ready() const { return state_.load(std::memory_order_acquire) == State::Ready; }
   esp_err_t send(const void *data, std::size_t size);
   esp_err_t receive(void *data, std::size_t capacity, std::size_t &size);
+  bool send_pending() const { return sending_.load(std::memory_order_acquire); }
   esp_err_t last_send_error() const { return sendError_.load(std::memory_order_acquire); }
 
 private:
@@ -45,7 +43,6 @@ private:
     Ready
   };
   static void open_callback(void *context);
-  static void exchange_callback(void *context);
   static void dns_callback(const char *, const ip_addr_t *address, void *context);
   static void send_callback(void *context);
   static void receive_callback(void *context, udp_pcb *, pbuf *packet, const ip_addr_t *, u16_t);
@@ -56,7 +53,6 @@ private:
   std::atomic<Rx> received_{Rx::Empty};
   std::atomic<esp_err_t> sendError_{ESP_OK};
   udp_pcb *pcb_ = nullptr; // Accessed only from the TCP/IP task.
-  ip_addr_t peer_{};
   std::array<char, 128> host_{};
   std::uint16_t port_ = 0;
   std::array<std::uint8_t, Capacity> tx_{};

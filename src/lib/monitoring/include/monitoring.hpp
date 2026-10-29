@@ -117,7 +117,7 @@ public:
     return count_ == 0 ? nullptr : &storage_[head_].sample;
   }
   SampleId front_id() const { return {session_, headSequence_}; }
-  bool confirm(SampleId id)
+  bool consume(SampleId id)
   {
     if(count_ == 0)
       return false;

@@ -58,13 +58,15 @@ menu "rbAmp Pikachu monitoring"
         range 1000 60000
         default 1000
         help
-            Every successful sample is retained for up to one hour until ACKed.
+            Valid samples accumulate until the publication deadline and are
+            sent in a burst, without waiting for a receiver response. Samples
+            wait in the FIFO during local network failures, for up to one hour.
             The fixed three-channel BASIC format uses 62 bytes per FIFO entry.
             At 1 Hz, the one-hour FIFO needs 223262 bytes including one spare
             entry. Startup reports insufficient RAM and the free/largest block.
 
     config RBAMP_MONITOR_PUBLISH_PERIOD_MS
-        int "Publication period (ms)"
+        int "Monitoring burst period (ms)"
         range 1000 3600000
         default 10000
 

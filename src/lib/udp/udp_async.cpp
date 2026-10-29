@@ -48,37 +48,12 @@ void AsyncClient::connect(const ip_addr_t *address)
       pcb_ = udp_new_ip_type(IPADDR_TYPE_V4);
     if(pcb_ != nullptr && udp_connect(pcb_, address, port_) == ERR_OK)
     {
-      peer_ = *address;
       udp_recv(pcb_, receive_callback, this);
       state_.store(State::Ready, std::memory_order_release);
       return;
     }
   }
   state_.store(State::Failed, std::memory_order_release);
-}
-
-esp_err_t AsyncClient::new_exchange()
-{
-  if(sending_.load(std::memory_order_acquire))
-    return ESP_ERR_TIMEOUT;
-  auto expected = State::Ready;
-  if(!state_.compare_exchange_strong(expected, State::Opening, std::memory_order_acq_rel))
-    return ESP_ERR_INVALID_STATE;
-  if(tcpip_try_callback(exchange_callback, this) != ERR_OK)
-  {
-    state_.store(State::Ready, std::memory_order_release);
-    return ESP_ERR_TIMEOUT;
-  }
-  return ESP_OK;
-}
-
-void AsyncClient::exchange_callback(void *context)
-{
-  auto &self = *static_cast<AsyncClient *>(context);
-  udp_remove(self.pcb_);
-  self.pcb_ = nullptr;
-  self.received_.store(Rx::Empty, std::memory_order_release);
-  self.connect(&self.peer_);
 }
 
 esp_err_t AsyncClient::send(const void *data, std::size_t size)

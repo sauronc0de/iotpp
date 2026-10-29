@@ -21,7 +21,6 @@ namespace
 {
 constexpr char TAG[] = "monitor_rbamp";
 constexpr std::int64_t RetryUs = 5000000;
-constexpr std::int64_t AckTimeoutUs = 2000000;
 constexpr std::int64_t ReplayGapUs = 20000; // Bounded replay: at most 50 packets/s.
 constexpr auto MonitoringCommand = static_cast<dex::CommandId>(dex::peripheral::PeripheralCommandId::Monitoring);
 using Publication = dex::ResponsePacket<dex::peripheral::AddressedData<dex::Pikachu::MonitoringPublication>>;
@@ -43,8 +42,8 @@ struct Monitor
   std::uint32_t session = 0;
   void *storage = nullptr;
   gptimer_handle_t sampleTimer = nullptr;
-  monitoring::SampleId inFlight{}, exchangeFor{};
-  bool awaitingResult = false, exchangePrepared = false, draining = false, profileError = false;
+  monitoring::SampleId inFlight{};
+  bool sendPending = false, draining = false, profileError = false;
   std::int64_t nextNtp = 0, nextNetwork = 0, nextPublish = 0, nextSend = 0, nextAllocation = 0;
   std::uint32_t capturedAt = 0, capturedUtc = 0;
   std::array<std::uint8_t, dex::MaxDatagramSize> received{};
@@ -82,18 +81,6 @@ struct Monitor
       ntp.send(request.data(), request.size());
       nextNtp = now + RetryUs;
     }
-    if(collector.receive(received.data(), received.size(), size) == ESP_OK)
-    {
-      dex::Response response;
-      if(size == dex::ResponseHeaderSize && awaitingResult &&
-         dex::decode_response({received.data(), size}, response) == dex::Error::None &&
-         response.command == MonitoringCommand && response.result == dex::Error::None)
-      {
-        history.confirm(inFlight);
-        awaitingResult = false;
-        nextSend = now + ReplayGapUs;
-      }
-    }
   }
 
   void allocate_history(std::int64_t now)
@@ -115,6 +102,7 @@ struct Monitor
       return;
     }
     history.initialize(storage, monitoring::History::capacity(CONFIG_RBAMP_MONITOR_SAMPLE_PERIOD_MS), session);
+    nextPublish = now + CONFIG_RBAMP_MONITOR_PUBLISH_PERIOD_MS * 1000LL;
     ESP_LOGI(TAG, "One-hour FIFO: %u slots, %u bytes", static_cast<unsigned>(monitoring::History::capacity(CONFIG_RBAMP_MONITOR_SAMPLE_PERIOD_MS)), static_cast<unsigned>(bytes));
   }
 
@@ -146,32 +134,30 @@ struct Monitor
     if(storage == nullptr)
       return;
     history.expire(static_cast<std::uint32_t>(now / 1000000)); // Immune to UTC corrections.
+    if(sendPending)
+    {
+      if(collector.send_pending())
+        return;
+      sendPending = false;
+      // This is only local lwIP completion, never a receiver acknowledgement.
+      if(collector.last_send_error() == ESP_OK)
+        history.consume(inFlight);
+      nextSend = now + ReplayGapUs;
+    }
     if(now >= nextPublish)
     {
       draining = true;
-      nextPublish = now + CONFIG_RBAMP_MONITOR_PUBLISH_PERIOD_MS * 1000LL;
+      constexpr std::int64_t period = CONFIG_RBAMP_MONITOR_PUBLISH_PERIOD_MS * 1000LL;
+      nextPublish += ((now - nextPublish) / period + 1) * period;
     }
     if(history.size() == 0)
     {
       draining = false;
-      awaitingResult = false;
-      exchangePrepared = false;
       return;
     }
     if(!draining || !collector.ready() || !wifi::is_connected() || now < nextSend)
       return;
     const auto id = history.front_id();
-    if(!exchangePrepared || exchangeFor.session != id.session || exchangeFor.sequence != id.sequence)
-    {
-      if(collector.new_exchange() == ESP_OK)
-      {
-        exchangeFor = id;
-        exchangePrepared = true;
-        awaitingResult = false;
-      }
-      return;
-    }
-    awaitingResult = false;
     Publication publication{};
     publication.command = MonitoringCommand;
     publication.data.peripheralId = CONFIG_RBAMP_MONITOR_PERIPHERAL_ID;
@@ -179,8 +165,7 @@ struct Monitor
     if(collector.send(&publication, sizeof(publication)) == ESP_OK)
     {
       inFlight = id;
-      awaitingResult = true;
-      nextSend = now + AckTimeoutUs;
+      sendPending = true;
     }
     else
       nextSend = now + ReplayGapUs;
