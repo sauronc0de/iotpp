@@ -17,10 +17,12 @@ struct ProcessResult
   Action action = Action::None;
 };
 
+using PeripheralHandler = ProcessResult (*)(const Request &, std::uint8_t *, std::size_t);
+
 class Server
 {
 public:
-  explicit Server(Version firmwareVersion);
+  explicit Server(Version firmwareVersion, PeripheralHandler peripheralHandler = nullptr);
 
   // Write a reply into the caller's buffer. Empty datagrams produce no reply.
   // Execute the returned action only after successfully sending the reply.
@@ -28,5 +30,6 @@ public:
 
 private:
   device::InfoData<0> info_{};
+  PeripheralHandler peripheralHandler_ = nullptr;
 };
 } // namespace dex

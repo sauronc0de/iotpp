@@ -87,6 +87,20 @@ public:
     session_ = session;
     headSequence_ = dropped_ = 0;
   }
+  // Move to a larger allocation without losing pending samples or their IDs.
+  // Only the owning task calls this; network callbacks never reference entries.
+  bool relocate(void *storage, std::size_t slots)
+  {
+    if(storage == nullptr || slots < count_)
+      return false;
+    auto *destination = static_cast<BasicHistoryEntry *>(storage);
+    for(std::size_t i = 0; i < count_; ++i)
+      destination[i] = storage_[(head_ + i) % slots_];
+    storage_ = destination;
+    slots_ = slots;
+    head_ = 0;
+    return true;
+  }
   std::size_t expire(std::uint32_t now)
   {
     std::size_t expired = 0;

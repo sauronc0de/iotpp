@@ -17,6 +17,64 @@ menu "Sentinel WiFi and DEX"
 
 endmenu
 
+menu "Door GPIO monitoring (opt-in monitor_door task)"
+
+    config DOOR_MONITOR_GPIO
+        int "Magnetic sensor RTC GPIO"
+        range 0 39
+        default 33
+        help
+            Must support EXT0 wakeup. On ESP32: 0, 2, 4, 12-15, 25-27, 32-39.
+            Use a dedicated pin, not one assigned to another task or peripheral.
+
+    config DOOR_MONITOR_OPEN_LEVEL
+        int "GPIO level when the door is open"
+        range 0 1
+        default 1
+
+    config DOOR_MONITOR_INTERNAL_PULL
+        bool "Enable internal pull towards the open level"
+        default y
+        help
+            With open level 1, connect the normally closed contact to GND.
+            With open level 0, connect it to 3.3V. Disable for an external
+            pull resistor (required on ESP32 GPIO34-39).
+
+    config DOOR_MONITOR_SAMPLE_PERIOD_MS
+        int "GPIO reading interval (ms)"
+        range 10 1000
+        default 20
+
+    config DOOR_MONITOR_CLOSED_READINGS
+        int "Consecutive closed readings required"
+        range 2 100
+        default 5
+
+    config DOOR_MONITOR_HOST
+        string "Door event receiver hostname or IPv4 (required)"
+        default ""
+
+    config DOOR_MONITOR_PORT
+        int "Door event receiver UDP port"
+        range 1 65535
+        default 4444
+
+    config DOOR_MONITOR_PERIPHERAL_ID
+        int "Door peripheral instance ID"
+        range 0 255
+        default 1
+
+    config DOOR_MONITOR_TX_GRACE_MS
+        int "Delay after local UDP completion before Deep Sleep (ms)"
+        range 100 5000
+        default 250
+        help
+            Allows Wi-Fi to transmit queued packets. UDP completion is not
+            an acknowledgement from the receiver. Network failures keep the
+            device awake and retrying; Deep Sleep affects every running task.
+
+endmenu
+
 menu "rbAmp Pikachu monitoring"
 
     config RBAMP_MONITOR_SDA_GPIO

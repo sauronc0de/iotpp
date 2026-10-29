@@ -2,9 +2,11 @@
 set(device_task_sources)
 set(device_task_include_dirs)
 set(device_task_requires)
-set(device_task_libraries)
+set(device_task_libraries config_store)
+set(device_task_compile_definitions)
 set(device_task_headers "")
 set(device_task_startup "")
+set(device_task_prepare "")
 set(device_task_wifi OFF)
 
 foreach(task IN LISTS DEVICE_TASKS)

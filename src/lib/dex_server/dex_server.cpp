@@ -2,7 +2,8 @@
 
 namespace dex
 {
-Server::Server(Version firmwareVersion) : info_{firmwareVersion, {}}
+Server::Server(Version firmwareVersion, PeripheralHandler peripheralHandler)
+    : info_{firmwareVersion, {}}, peripheralHandler_(peripheralHandler)
 {
 }
 
@@ -22,6 +23,14 @@ ProcessResult Server::process(Bytes bytes, std::uint8_t *response, std::size_t c
   const auto error = decode_request(bytes, request);
   if(error != Error::None)
     return reply(static_cast<CommandId>(bytes.data[0]), error);
+
+  if(request.command == static_cast<CommandId>(peripheral::PeripheralCommandId::Status) ||
+     request.command == static_cast<CommandId>(peripheral::PeripheralCommandId::Config))
+  {
+    if(peripheralHandler_ != nullptr)
+      return peripheralHandler_(request, response, capacity);
+    return reply(request.command, Error::UnsupportedOperation);
+  }
 
   switch(request.command)
   {

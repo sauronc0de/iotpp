@@ -13,3 +13,4 @@ idf_component_register(
     KCONFIG_PROJBUILD "${CMAKE_CURRENT_LIST_DIR}/../../config/Kconfig.projbuild"
 )
 target_link_libraries(${COMPONENT_LIB} PRIVATE ${device_task_libraries})
+target_compile_definitions(${COMPONENT_LIB} PRIVATE ${device_task_compile_definitions})

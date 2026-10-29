@@ -1,6 +1,7 @@
 #include "wifi.h"
 
 #include <cstring>
+#include "config_store.hpp"
 
 #include "esp_event.h"
 #include "esp_log.h"
@@ -8,7 +9,6 @@
 #include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
-#include "nvs_flash.h"
 
 namespace
 {
@@ -59,13 +59,9 @@ esp_err_t initialize(const char *ssid, const char *password)
     return ESP_ERR_INVALID_STATE;
   }
 
-  esp_err_t result = nvs_flash_init();
-  if(result == ESP_ERR_NVS_NO_FREE_PAGES || result == ESP_ERR_NVS_NEW_VERSION_FOUND)
-  {
-    ESP_ERROR_CHECK(nvs_flash_erase());
-    result = nvs_flash_init();
-  }
-  ESP_ERROR_CHECK(result);
+  // Shared NVS ownership: Wi-Fi recovery must never erase peripheral configs.
+  if(config_store::initialize() != config_store::Result::Ok)
+    return ESP_FAIL;
 
   events = xEventGroupCreate();
   ESP_ERROR_CHECK(events != nullptr ? ESP_OK : ESP_ERR_NO_MEM);
