@@ -7,7 +7,6 @@
 #include "driver/rtc_io.h"
 #include "esp_log.h"
 #include "esp_pm.h"
-#include "esp_random.h"
 #include "esp_sleep.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
@@ -16,6 +15,7 @@
 #include "sdkconfig.h"
 #include "snorlax_control.hpp"
 #include "udp_async.hpp"
+#include "utc.hpp"
 #include "wifi.h"
 
 namespace
@@ -29,7 +29,7 @@ constexpr bool InternalPull = false;
 #endif
 constexpr std::int64_t RetryUs = 1000000;
 using Publication = dex::ResponsePacket<dex::peripheral::AddressedData<dex::Snorlax::MonitoringPublication>>;
-static_assert(sizeof(Publication) == 15);
+static_assert(sizeof(Publication) == 11);
 SemaphoreHandle_t controlMutex = nullptr;
 door::Control control{CONFIG_DOOR_MONITOR_PERIPHERAL_ID, CONFIG_DOOR_MONITOR_SAMPLE_PERIOD_MS};
 
@@ -40,7 +40,7 @@ struct Monitor
   // Bounded outage buffer. Keep the in-flight front stable on overflow.
   std::array<dex::Snorlax::MonitoringPublication, 32> events{};
   unsigned head = 0, count = 0;
-  std::uint32_t session = 0, sequence = 0, configRevision = 0;
+  std::uint32_t configRevision = 0;
   bool sending = false, enabled = true;
   std::int64_t nextNetwork = 0, nextSend = 0, sleepAfter = 0;
 #if CONFIG_PM_ENABLE
@@ -61,11 +61,10 @@ struct Monitor
     xSemaphoreGive(controlMutex);
     if(!enabled)
       return;
-    dex::Snorlax::MonitoringPublication event{session, sequence++, value};
+    dex::Snorlax::MonitoringPublication event{utc::get(), value};
     if(count == events.size())
     {
-      // Preserve the older events and the most recent state; sequence gaps
-      // expose lost transitions to the receiver during prolonged outages.
+      // Preserve the older events and the most recent state.
       events[(head + count - 1) % events.size()] = event;
       ESP_LOGW(TAG, "Event buffer full; replacing newest queued transition");
     }
@@ -141,9 +140,8 @@ Monitor monitor;
 
 void monitor_door_task(void *)
 {
-  // Capture the wake event even if the door closed during firmware/Wi-Fi boot.
-  if(esp_sleep_get_wakeup_causes() & (1UL << ESP_SLEEP_WAKEUP_EXT0))
-    monitor.observe(true);
+  // Observe only after startup UTC synchronization. A past wake event cannot
+  // be timestamped accurately if the door already closed during startup.
   const auto ticks = pdMS_TO_TICKS(CONFIG_DOOR_MONITOR_SAMPLE_PERIOD_MS);
   while(true)
   {
@@ -241,6 +239,5 @@ esp_err_t start_monitor_door_task()
      (error = esp_pm_lock_acquire(monitor.awakeLock)) != ESP_OK)
     return error;
 #endif
-  monitor.session = esp_random();
   return xTaskCreate(monitor_door_task, "monitor_door", 4096, nullptr, 4, nullptr) == pdPASS ? ESP_OK : ESP_ERR_NO_MEM;
 }

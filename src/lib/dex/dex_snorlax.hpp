@@ -13,12 +13,7 @@ enum class State : std::uint8_t
 };
 
 // Published with peripheral Monitoring, like the other sensor publications.
-struct MonitoringPublication
-{
-  std::uint32_t session;
-  std::uint32_t sequence;
-  State state;
-};
+using MonitoringPublication = dex::MonitoringPublication<State>;
 
 struct ConfigData : dex::peripheral::ConfigData
 {
@@ -33,5 +28,5 @@ struct StatusData : dex::peripheral::StatusData
   State doorState = State::Unknown;
 };
 #pragma pack(pop)
-static_assert(sizeof(MonitoringPublication) == 9);
+static_assert(sizeof(MonitoringPublication) == 5);
 } // namespace dex::Snorlax

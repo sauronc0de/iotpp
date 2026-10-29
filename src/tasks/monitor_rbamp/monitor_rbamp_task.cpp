@@ -1,13 +1,11 @@
 #include "monitor_rbamp_task.hpp"
 
-#include <array>
 #include <atomic>
 #include "dex.hpp"
 #include "driver/gptimer.h"
 #include "esp_attr.h"
 #include "esp_heap_caps.h"
 #include "esp_log.h"
-#include "esp_random.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -17,6 +15,7 @@
 #include "sdkconfig.h"
 #include "pikachu_control.hpp"
 #include "udp_async.hpp"
+#include "utc.hpp"
 #include "wifi.h"
 
 namespace
@@ -26,7 +25,7 @@ constexpr std::int64_t RetryUs = 5000000;
 constexpr std::int64_t ReplayGapUs = 20000; // Bounded replay: at most 50 packets/s.
 constexpr auto MonitoringCommand = static_cast<dex::CommandId>(dex::peripheral::PeripheralCommandId::Monitoring);
 using Publication = dex::ResponsePacket<dex::peripheral::AddressedData<dex::Pikachu::MonitoringPublication>>;
-static_assert(sizeof(Publication) == 72);
+static_assert(sizeof(Publication) == 64);
 std::atomic<bool> sampleDue{false};
 SemaphoreHandle_t controlMutex = nullptr;
 pikachu::Control control{CONFIG_RBAMP_MONITOR_PERIPHERAL_ID, CONFIG_RBAMP_MONITOR_SAMPLE_PERIOD_MS, CONFIG_RBAMP_MONITOR_PUBLISH_PERIOD_MS};
@@ -40,20 +39,17 @@ bool IRAM_ATTR sample_alarm(gptimer_handle_t, const gptimer_alarm_event_data_t *
 struct Monitor
 {
   rbamp_async::Meter meter;
-  udp::AsyncClient collector, ntp;
+  udp::AsyncClient collector;
   monitoring::History history;
-  monitoring::UtcClock clock;
-  std::uint32_t session = 0;
   void *storage = nullptr;
   std::size_t historySlots = 0;
   dex::Pikachu::ConfigData config{};
   std::uint32_t configRevision = 0;
   gptimer_handle_t sampleTimer = nullptr;
-  monitoring::SampleId inFlight{};
+  std::uint32_t inFlight = 0;
   bool sendPending = false, draining = false, profileError = false;
-  std::int64_t nextNtp = 0, nextNetwork = 0, nextPublish = 0, nextSend = 0, nextAllocation = 0;
+  std::int64_t nextNetwork = 0, nextPublish = 0, nextSend = 0, nextAllocation = 0;
   std::uint32_t capturedAt = 0, capturedUtc = 0;
-  std::array<std::uint8_t, dex::MaxDatagramSize> received{};
 
   void configuration(std::int64_t now)
   {
@@ -102,23 +98,9 @@ struct Monitor
       return;
     if(now >= nextNetwork)
     {
-      if(!ntp.ready())
-        ntp.initialize(CONFIG_RBAMP_MONITOR_NTP_SERVER, 123);
       if(!collector.ready() && CONFIG_RBAMP_MONITOR_HOST[0] != '\0')
         collector.initialize(CONFIG_RBAMP_MONITOR_HOST, CONFIG_RBAMP_MONITOR_PORT);
       nextNetwork = now + RetryUs;
-    }
-    std::size_t size = 0;
-    if(ntp.receive(received.data(), received.size(), size) == ESP_OK && clock.accept({received.data(), size}, now))
-    {
-      nextNtp = now + monitoring::HourUs;
-      ESP_LOGI(TAG, "UTC synchronized: %lu", static_cast<unsigned long>(clock.seconds(now)));
-    }
-    if(now >= nextNtp && ntp.ready())
-    {
-      const auto request = clock.request((std::uint64_t(esp_random()) << 32) | esp_random(), now);
-      ntp.send(request.data(), request.size());
-      nextNtp = now + RetryUs;
     }
   }
 
@@ -143,7 +125,7 @@ struct Monitor
       return;
     }
     if(storage == nullptr)
-      history.initialize(replacement, slots, session);
+      history.initialize(replacement, slots);
     else
     {
       history.relocate(replacement, slots); // Growing only; preserves every entry.
@@ -162,21 +144,21 @@ struct Monitor
     rbamp_async::Reading reading{};
     if(meter.take(reading) && storage != nullptr && config.monitoring.enabled)
     {
-      dex::Pikachu::BasicSample sample{};
+      dex::Pikachu::MonitoringPublication sample{};
       if(monitoring::make_basic_sample(reading, capturedUtc, sample))
         history.push(sample, capturedAt);
     }
     if(!sampleDue.exchange(false, std::memory_order_acquire) || !config.monitoring.enabled ||
        storage == nullptr || historySlots < monitoring::History::capacity(config.monitoring.samplePeriodMs) ||
-       !clock.valid() || !meter.ready())
+        !meter.ready())
       return;
     if(!compatible_profile())
       return;
-    const auto utc = clock.seconds(now);
-    if(utc != 0 && meter.request(now))
+    const auto timestamp = utc::get();
+    if(timestamp != 0 && meter.request(now))
     {
       capturedAt = static_cast<std::uint32_t>(now / 1000000);
-      capturedUtc = utc;
+      capturedUtc = timestamp;
     }
   }
 
@@ -214,7 +196,7 @@ struct Monitor
     Publication publication{};
     publication.command = MonitoringCommand;
     publication.data.peripheralId = CONFIG_RBAMP_MONITOR_PERIPHERAL_ID;
-    publication.data.data = {id.session, id.sequence, *history.front()};
+    publication.data.data = *history.front();
     if(collector.send(&publication, sizeof(publication)) == ESP_OK)
     {
       inFlight = id;
@@ -288,7 +270,6 @@ esp_err_t start_monitor_rbamp_task()
 {
   if(CONFIG_RBAMP_MONITOR_SDA_GPIO == CONFIG_RBAMP_MONITOR_SCL_GPIO)
     return ESP_ERR_INVALID_ARG;
-  monitor.session = esp_random();
   auto error = monitor.meter.initialize({CONFIG_RBAMP_MONITOR_I2C_PORT, static_cast<gpio_num_t>(CONFIG_RBAMP_MONITOR_SDA_GPIO), static_cast<gpio_num_t>(CONFIG_RBAMP_MONITOR_SCL_GPIO), CONFIG_RBAMP_MONITOR_ADDRESS, CONFIG_RBAMP_MONITOR_CT_MODEL});
   if(error != ESP_OK)
     return error;

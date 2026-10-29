@@ -4,6 +4,7 @@ list(APPEND device_task_requires esp_driver_gpio esp_hw_support esp_pm esp_timer
 list(APPEND device_task_libraries dex_server config_store udp)
 list(APPEND device_task_compile_definitions IOTPP_MONITOR_DOOR=1)
 set(device_task_wifi ON)
+set(device_task_utc ON)
 string(APPEND device_task_headers "#include \"monitor_door_task.hpp\"\n")
 string(APPEND device_task_prepare "  ESP_ERROR_CHECK(restore_monitor_door_config());\n")
 string(APPEND device_task_startup "  ESP_ERROR_CHECK(start_monitor_door_task());\n")

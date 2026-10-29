@@ -19,20 +19,13 @@ struct BasicChannelSample
 
 struct BasicSample
 {
-  std::uint32_t timestamp;   // Unix UTC seconds at acquisition start
   std::uint16_t frequency;   // 0.01 Hz per unit
   std::uint16_t voltage;     // 0.1 V per unit, shared by all three channels
   std::uint16_t peakVoltage; // 0.1 V per unit
   std::array<BasicChannelSample, BasicChannelCount> channels;
 };
 
-// Delivery metadata is generated from FIFO state, not stored in each sample.
-struct MonitoringPublication
-{
-  std::uint32_t session;
-  std::uint32_t sequence;
-  BasicSample sample;
-};
+using MonitoringPublication = dex::MonitoringPublication<BasicSample>;
 
 struct ConfigData : dex::peripheral::ConfigData
 {
@@ -47,6 +40,6 @@ struct StatusData : dex::peripheral::StatusData
 #pragma pack(pop)
 
 static_assert(sizeof(BasicChannelSample) == 16);
-static_assert(sizeof(BasicSample) == 58);
-static_assert(sizeof(MonitoringPublication) == 66);
+static_assert(sizeof(BasicSample) == 54);
+static_assert(sizeof(MonitoringPublication) == 58);
 } // namespace dex::Pikachu

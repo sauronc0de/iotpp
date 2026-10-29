@@ -14,6 +14,13 @@ struct Version
   std::uint8_t patch;
 };
 
+template <typename T>
+struct MonitoringPublication
+{
+  std::uint32_t timestamp; // Unix UTC seconds at acquisition/event time.
+  T data;
+};
+
 enum class Event : std::uint8_t
 {
   Wakeup,

@@ -8,6 +8,7 @@ set(device_task_headers "")
 set(device_task_startup "")
 set(device_task_prepare "")
 set(device_task_wifi OFF)
+set(device_task_utc OFF)
 
 foreach(task IN LISTS DEVICE_TASKS)
     if(NOT task MATCHES "^[a-zA-Z0-9_]+$" OR
@@ -17,6 +18,13 @@ foreach(task IN LISTS DEVICE_TASKS)
     include("${CMAKE_CURRENT_LIST_DIR}/${task}/CMakeLists.txt")
 endforeach()
 
+
+if(device_task_utc)
+    list(APPEND device_task_libraries utc)
+    list(APPEND device_task_requires esp_netif)
+    string(APPEND device_task_headers "#include \"utc.hpp\"\n")
+    set(device_task_startup "  ESP_ERROR_CHECK(utc::initialize());\n${device_task_startup}")
+endif()
 
 if(device_task_wifi)
     list(APPEND device_task_libraries wifi)

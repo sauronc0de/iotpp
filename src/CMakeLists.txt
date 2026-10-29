@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 set(APP_NAME "sentinel" CACHE STRING "Application to build")
 # One library registry for firmware and native builds. Executables only link.
-set(IOTPP_LIBRARIES dex dex_server config_store rbamp_async monitoring udp wifi)
+set(IOTPP_LIBRARIES dex dex_server config_store rbamp_async monitoring udp wifi utc)
 if(APP_NAME STREQUAL "dex-client")
     project(iotpp LANGUAGES CXX)
 else()
@@ -44,6 +44,8 @@ else()
     target_link_libraries(config_store PRIVATE idf::nvs_flash idf::freertos idf::log)
     target_link_libraries(wifi PUBLIC idf::esp_common
         PRIVATE config_store idf::esp_event idf::esp_netif idf::esp_wifi idf::freertos)
+    target_link_libraries(utc PUBLIC idf::esp_common
+        PRIVATE wifi idf::esp_netif idf::freertos idf::log)
 
     string(REPLACE "." "," firmware_version "${PROJECT_VERSION}")
     idf_component_get_property(app_component ${APP_NAME} COMPONENT_LIB)

@@ -137,8 +137,13 @@ menu "rbAmp Pikachu monitoring"
         range 1 65535
         default 4444
 
-    config RBAMP_MONITOR_NTP_SERVER
-        string "Internet NTP server for initial UTC and hourly resynchronization"
-        default "pool.ntp.org"
+endmenu
 
+menu "Monitoring UTC clock"
+    config MONITORING_NTP_SERVER
+        string "Internet NTP server"
+        default "pool.ntp.org"
+        help
+            Monitoring tasks start only after the first UTC synchronization.
+            The shared system clock is periodically resynchronized by SNTP.
 endmenu
