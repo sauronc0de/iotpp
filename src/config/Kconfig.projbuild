@@ -1,3 +1,26 @@
+menu "OTA updates (Mew)"
+
+    config OTA_MANIFEST_URL
+        string "HTTPS manifest URL (empty disables network checks)"
+        default ""
+
+    config OTA_CHECK_INTERVAL_SECONDS
+        int "Automatic check interval in seconds (0 = manual only)"
+        range 0 2592000
+        default 21600
+
+    config OTA_PERIPHERAL_ID
+        int "Mew peripheral instance ID (type is always 151)"
+        range 0 255
+        default 2
+
+    config OTA_BOOT_VALIDATION_SECONDS
+        int "Local boot observation window before confirming firmware"
+        range 5 120
+        default 30
+
+endmenu
+
 menu "Sentinel WiFi and DEX"
 
     config SENTINEL_WIFI_SSID

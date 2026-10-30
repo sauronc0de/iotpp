@@ -1,0 +1,4 @@
+#pragma once
+inline constexpr char OtaApplication[] = "@APP_NAME@";
+inline constexpr char OtaProfile[] = "@DEVICE_PROFILE@";
+inline constexpr char OtaCa[] = R"OTACA(@OTA_CA_PEM@)OTACA";

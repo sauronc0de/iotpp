@@ -1,4 +1,5 @@
 dependencies:
+  espressif/cjson: "^1.7.19"
   rbamp:
     git: https://github.com/rb-amp/rbamp-esp-idf.git
     version: v1.7.2

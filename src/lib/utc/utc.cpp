@@ -9,11 +9,24 @@
 
 namespace utc
 {
+namespace
+{
+bool started = false; // Initialization is serialized by application startup.
+}
+esp_err_t start()
+{
+  if(started)
+    return ESP_OK;
+  esp_sntp_config_t config = ESP_NETIF_SNTP_DEFAULT_CONFIG(CONFIG_MONITORING_NTP_SERVER);
+  const auto error = esp_netif_sntp_init(&config);
+  started = error == ESP_OK;
+  return error;
+}
+
 esp_err_t initialize()
 {
   wifi::wait_connected();
-  esp_sntp_config_t config = ESP_NETIF_SNTP_DEFAULT_CONFIG(CONFIG_MONITORING_NTP_SERVER);
-  const auto error = esp_netif_sntp_init(&config);
+  const auto error = start();
   if(error != ESP_OK)
     return error;
   ESP_LOGI("utc", "Waiting for Internet UTC synchronization");

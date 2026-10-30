@@ -12,10 +12,28 @@ run dex client    # Build incrementally and query Info, Status and Config
 
 Default port: `/dev/ttyUSB0`. Override it with `ESPPORT=/dev/ttyUSB1 run esp32 flash`.
 
+## OTA updates — Mew (type 151)
+
+Sentinel includes an independent OTA task: HTTPS checks every six hours,
+automatic installation of compatible newer firmware, two OTA slots and boot
+rollback. Mew exposes both slots, versions, running/next-boot flags, progress,
+persistent polling configuration and a manual `FirmwareCheck` action over DEX.
+
+```sh
+run esp32 menuconfig                            # Set OTA manifest URL
+run esp32 build -D FIRMWARE_RELEASE=1.0.0 -D OTA_CA_CERT=/path/to/root-ca.crt
+run ota publish --output /srv/ota                # Existing HTTPS document root
+run dex client mew-status --id 2
+run dex client mew-check --id 2
+run dex client mew-config --id 2 --interval 0     # Manual-only checks
+```
+
+See [OTA setup, Raspberry Pi hosting, initial serial migration and protocol](src/lib/ota/README.md).
+
 ## Sentinel DEX listener
 
 The native Linux C++ client links `lib/dex` and prints decoded enums using
-`magic_enum`. See [`src/app/dex-client`](src/app/dex-client/README.md).
+`magic_enum`.
 
 ```sh
 run dex build
@@ -48,7 +66,7 @@ UDP from the container.
 
 | CMD | Request DATA | Successful response DATA |
 |---|---|---|
-| `Info` | None | `dex::device::InfoData<0>` (firmware version, no peripherals) |
+| `Info` | None | Firmware version + typed peripheral entries when OTA is enabled; otherwise `dex::device::InfoData<0>` |
 | `Status` | None | `dex::StatusData` (ready, no errors or notifications) |
 | `Reset` | None | None; replies OK before restarting |
 

@@ -1,4 +1,14 @@
 dependencies:
+  espressif/cjson:
+    component_hash: e788323270d90738662d66fffa910bfe1fba019bba087f01557e70c40485b469
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=5.0'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.7.19~2
   idf:
     source:
       type: idf
@@ -22,7 +32,8 @@ dependencies:
     - esp32h2
     version: e9a2fbddd9c532a33588e4ac30feb62f10370ec5
 direct_dependencies:
+- espressif/cjson
 - rbamp
-manifest_hash: 35d33bff77421ed0fb0f1536ad459a3cea70d82f87ac5f51b13f2ba37235e8d3
+manifest_hash: d8d9e31e4a1443ba2adc709563cb7509834c82521677088d91b832f4d408d71d
 target: esp32
 version: 3.0.0

@@ -2,8 +2,8 @@
 
 namespace dex
 {
-Server::Server(Version firmwareVersion, PeripheralHandler peripheralHandler)
-    : info_{firmwareVersion, {}}, peripheralHandler_(peripheralHandler)
+Server::Server(Version firmwareVersion, PeripheralHandler peripheralHandler, PeripheralHandler infoHandler)
+    : info_{firmwareVersion, {}}, peripheralHandler_(peripheralHandler), infoHandler_(infoHandler)
 {
 }
 
@@ -24,8 +24,9 @@ ProcessResult Server::process(Bytes bytes, std::uint8_t *response, std::size_t c
   if(error != Error::None)
     return reply(static_cast<CommandId>(bytes.data[0]), error);
 
-  if(request.command == static_cast<CommandId>(peripheral::PeripheralCommandId::Status) ||
-     request.command == static_cast<CommandId>(peripheral::PeripheralCommandId::Config))
+  if(request.command == CommandId::PeripheralStatus ||
+     request.command == CommandId::PeripheralConfig ||
+     request.command == CommandId::PeripheralAction)
   {
     if(peripheralHandler_ != nullptr)
       return peripheralHandler_(request, response, capacity);
@@ -47,6 +48,8 @@ ProcessResult Server::process(Bytes bytes, std::uint8_t *response, std::size_t c
   switch(request.command)
   {
   case CommandId::Info:
+    if(infoHandler_)
+      return infoHandler_(request, response, capacity);
     return reply(request.command, Error::None, as_bytes(info_));
   case CommandId::Status:
   {

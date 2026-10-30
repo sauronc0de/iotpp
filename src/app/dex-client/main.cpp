@@ -51,11 +51,16 @@ struct Options
   std::string command = "all";
   std::string host = "192.168.41.252";
   std::string port = "4444";
+  unsigned peripheralId = 2;
+  std::uint32_t interval = 0;
+  bool setInterval = false;
 };
 
 void usage()
 {
-  std::cout << "Usage: dex-client [info|status|config|all] [host] [--port PORT]\n"
+  std::cout << "Usage: dex-client [info|status|config|all|mew-status|mew-config|mew-check] [host]\n"
+               "                  [--port PORT] [--id ID] [--interval SECONDS]\n"
+               "Mew: default instance 2; --interval writes mew-config (0 = manual only).\n"
                "Defaults: all, 192.168.41.252:4444; timeout: 5 seconds per query.\n";
 }
 
@@ -66,7 +71,25 @@ Options parse_options(int argc, char **argv)
   for(int i = 1; i < argc; ++i)
   {
     const std::string_view argument = argv[i];
-    if(argument == "--port")
+    if(argument == "--id" || argument == "--interval")
+    {
+      if(++i == argc)
+        throw std::runtime_error("Missing numeric option value");
+      const std::string_view text = argv[i];
+      std::uint32_t value = 0;
+      const auto parsed = std::from_chars(text.data(), text.data() + text.size(), value);
+      if(parsed.ec != std::errc{} || parsed.ptr != text.data() + text.size() ||
+         value > (argument == "--id" ? 255u : 2592000u))
+        throw std::runtime_error("Option value out of range");
+      if(argument == "--id")
+        options.peripheralId = value;
+      else
+      {
+        options.interval = value;
+        options.setInterval = true;
+      }
+    }
+    else if(argument == "--port")
     {
       if(++i == argc)
         throw std::runtime_error("--port requires a value");
@@ -88,8 +111,11 @@ Options parse_options(int argc, char **argv)
       throw std::runtime_error("Too many arguments");
   }
 
-  if(options.command != "all" && options.command != "info" && options.command != "status" && options.command != "config")
+  if(options.command != "all" && options.command != "info" && options.command != "status" && options.command != "config" &&
+     options.command != "mew-status" && options.command != "mew-config" && options.command != "mew-check")
     throw std::runtime_error("Unknown query: " + options.command);
+  if(options.setInterval && options.command != "mew-config")
+    throw std::runtime_error("--interval requires mew-config");
   unsigned port = 0;
   const auto parsed = std::from_chars(options.port.data(), options.port.data() + options.port.size(), port);
   if(parsed.ec != std::errc{} || parsed.ptr != options.port.data() + options.port.size() || port == 0 || port > 65535)
@@ -149,15 +175,23 @@ void print_data(const dex::Response &response)
       std::cout << "Peripherals: 0\n";
       break;
     }
-    if(data.size < sizeof(dex::Version) || (data.size - sizeof(dex::Version)) % sizeof(dex::peripheral::InfoData) != 0)
+    if(data.size < sizeof(dex::Version))
+      throw std::runtime_error("Invalid Info payload size");
+    const auto bytes = data.size - sizeof(dex::Version);
+    const bool typed = bytes % sizeof(dex::Mew::InfoData) == 0;
+    const auto stride = typed ? sizeof(dex::Mew::InfoData) : sizeof(dex::peripheral::InfoData);
+    if(bytes % stride != 0)
       throw std::runtime_error("Invalid Info payload size");
     print_version("Firmware version", decode<dex::Version>({data.data, sizeof(dex::Version)}));
-    const auto count = (data.size - sizeof(dex::Version)) / sizeof(dex::peripheral::InfoData);
+    const auto count = bytes / stride;
     std::cout << "Peripherals: " << count << '\n';
     for(std::size_t i = 0; i < count; ++i)
     {
-      const auto peripheral = decode<dex::peripheral::InfoData>({data.data + sizeof(dex::Version) + i * sizeof(dex::peripheral::InfoData), sizeof(dex::peripheral::InfoData)});
+      const auto *entry = data.data + sizeof(dex::Version) + i * stride;
+      const auto peripheral = decode<dex::peripheral::InfoData>({entry, sizeof(dex::peripheral::InfoData)});
       std::cout << "Peripheral: " << unsigned(peripheral.id) << '\n';
+      if(typed)
+        std::cout << "Type: " << unsigned(entry[sizeof(dex::peripheral::InfoData)]) << '\n';
       print_version("Version", peripheral.version);
       print_flags("Capabilities", peripheral.capabilities);
     }
@@ -178,6 +212,37 @@ void print_data(const dex::Response &response)
     if(data.size != 0)
       decode<dex::device::ConfigData>(data);
     std::cout << "Configuration: no fields defined\n";
+    break;
+  case dex::CommandId::PeripheralStatus:
+  {
+    const auto packet = decode<dex::peripheral::AddressedData<dex::Mew::StatusData>>(data);
+    const auto &status = packet.data;
+    std::cout << "Mew instance: " << unsigned(packet.peripheralId) << '\n';
+    print_status(status);
+    print_enum("OTA phase", status.phase);
+    std::cout << "Last ESP-IDF error: " << status.lastError << "\nDownloaded: " << status.downloaded
+              << '/' << status.total << "\nLast check UTC: " << status.lastCheckUtc
+              << "\nCandidate: " << std::string(status.candidate, strnlen(status.candidate, sizeof(status.candidate))) << '\n';
+    for(const auto &slot : status.slots)
+    {
+      std::cout << "Slot: " << std::string(slot.label, strnlen(slot.label, sizeof(slot.label)))
+                << "\nFirmware: " << std::string(slot.version, strnlen(slot.version, sizeof(slot.version)))
+                << "\nRunning: " << unsigned(slot.running) << "\nNext boot: " << unsigned(slot.nextBoot) << '\n';
+      print_enum("Validity", slot.state);
+    }
+    break;
+  }
+  case dex::CommandId::PeripheralConfig:
+  {
+    const auto packet = decode<dex::peripheral::AddressedData<dex::Mew::ConfigData>>(data);
+    std::cout << "Mew instance: " << unsigned(packet.peripheralId)
+              << "\nCheck interval seconds: " << packet.data.intervalSeconds << '\n';
+    break;
+  }
+  case dex::CommandId::PeripheralAction:
+    if(data.size != 1)
+      throw std::runtime_error("Invalid action acknowledgement");
+    std::cout << "Mew instance: " << unsigned(data.data[0]) << "\nFirmware check accepted; query mew-status for progress.\n";
     break;
   default:
     throw std::runtime_error("Unexpected response command");
@@ -201,7 +266,7 @@ private:
   int fd_;
 };
 
-bool request(const sockaddr_in &target, dex::CommandId command)
+bool request(const sockaddr_in &target, dex::CommandId command, dex::Bytes data = {})
 {
   std::cout << "\n=== " << magic_enum::enum_name(command) << " ===\n"
             << std::flush;
@@ -214,8 +279,11 @@ bool request(const sockaddr_in &target, dex::CommandId command)
        connect(udp.get(), reinterpret_cast<const sockaddr *>(&target), sizeof(target)) < 0)
       throw std::system_error(errno, std::generic_category(), "UDP setup");
 
-    const dex::RequestHeader packet{command};
-    const auto bytes = dex::as_bytes(packet);
+    std::array<std::uint8_t, dex::MaxDatagramSize> packet{};
+    const auto encoded = dex::encode_request({command, data}, packet.data(), packet.size());
+    if(!encoded)
+      throw std::runtime_error("Cannot encode request");
+    const dex::Bytes bytes{packet.data(), encoded.size};
     if(send(udp.get(), bytes.data, bytes.size, 0) != static_cast<ssize_t>(bytes.size))
       throw std::system_error(errno, std::generic_category(), "send");
 
@@ -282,6 +350,30 @@ int main(int argc, char **argv)
     const std::unique_ptr<addrinfo, decltype(&freeaddrinfo)> resolved(addresses, freeaddrinfo);
     const auto target = *reinterpret_cast<const sockaddr_in *>(addresses->ai_addr);
     std::cout << "Target: " << options.host << ':' << options.port << '\n';
+
+    if(options.command.rfind("mew-", 0) == 0)
+    {
+      std::uint8_t payload[1 + sizeof(dex::Mew::ConfigData)]{};
+      payload[0] = static_cast<std::uint8_t>(options.peripheralId);
+      std::size_t size = 1;
+      auto command = dex::CommandId::PeripheralStatus;
+      if(options.command == "mew-check")
+      {
+        command = dex::CommandId::PeripheralAction;
+        payload[size++] = static_cast<std::uint8_t>(dex::Mew::Action::FirmwareCheck);
+      }
+      else if(options.command == "mew-config")
+      {
+        command = dex::CommandId::PeripheralConfig;
+        if(options.setInterval)
+        {
+          const dex::Mew::ConfigData config{options.interval};
+          std::memcpy(payload + size, &config, sizeof(config));
+          size += sizeof(config);
+        }
+      }
+      return request(target, command, {payload, size}) ? 0 : 1;
+    }
 
     std::vector<dex::CommandId> commands;
     if(options.command == "all" || options.command == "info") commands.push_back(dex::CommandId::Info);

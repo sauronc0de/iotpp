@@ -10,6 +10,7 @@
 #include "dex_peripheral.hpp"
 #include "dex_pikachu.hpp"
 #include "dex_snorlax.hpp"
+#include "dex_mew.hpp"
 
 namespace dex
 {

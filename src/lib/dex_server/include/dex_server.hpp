@@ -22,7 +22,8 @@ using PeripheralHandler = ProcessResult (*)(const Request &, std::uint8_t *, std
 class Server
 {
 public:
-  explicit Server(Version firmwareVersion, PeripheralHandler peripheralHandler = nullptr);
+  explicit Server(Version firmwareVersion, PeripheralHandler peripheralHandler = nullptr,
+                  PeripheralHandler infoHandler = nullptr);
 
   // Write a reply into the caller's buffer. Empty datagrams produce no reply.
   // Execute the returned action only after successfully sending the reply.
@@ -31,5 +32,6 @@ public:
 private:
   device::InfoData<0> info_{};
   PeripheralHandler peripheralHandler_ = nullptr;
+  PeripheralHandler infoHandler_ = nullptr;
 };
 } // namespace dex

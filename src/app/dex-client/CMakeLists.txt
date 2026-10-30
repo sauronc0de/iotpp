@@ -1,3 +1,10 @@
+cmake_minimum_required(VERSION 3.22)
+# tools/dex/build.sh also supports building this directory directly.
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    project(dex-client LANGUAGES CXX)
+    add_subdirectory("../../lib/dex" "${CMAKE_CURRENT_BINARY_DIR}/dex")
+endif()
+
 find_package(magic_enum 0.9.7 CONFIG QUIET)
 if(NOT magic_enum_FOUND)
     include(FetchContent)

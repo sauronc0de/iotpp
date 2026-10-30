@@ -17,16 +17,6 @@ struct AddressedData
   T data;
 };
 
-enum class PeripheralCommandId : std::uint8_t
-{
-  Status = static_cast<std::uint8_t>(CommandId::PeripheralCmd), //* Return peripheral Status
-  Config,                                                       //* Set/Get peripheral configuration
-  Action,                                                       //* Perform peripheral action
-  Monitoring,                                                   //* Get/Publish monitoring data
-  Pause,                                                        //* Stop peripheral operation (>151 for broadcast)
-  Resume,                                                       //* Resume peripheral operation (>151 for broadcast)
-};
-
 enum class PeripheralCapability : std::uint8_t
 {
   Monitoring = 1 << 0,

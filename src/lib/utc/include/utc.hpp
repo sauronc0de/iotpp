@@ -5,6 +5,8 @@
 
 namespace utc
 {
+// Start shared SNTP without waiting for network/time; safe to call repeatedly.
+esp_err_t start();
 // Call once after Wi-Fi initialization. Waits for the first Internet NTP sync.
 esp_err_t initialize();
 

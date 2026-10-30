@@ -53,13 +53,13 @@ public:
       const auto encoded = dex::encode_response({request.command, error, data}, response, capacity);
       return dex::ProcessResult{encoded.error, encoded.size, dex::Action::None};
     };
-    const auto command = static_cast<dex::peripheral::PeripheralCommandId>(request.command);
-    if(command != dex::peripheral::PeripheralCommandId::Status && command != dex::peripheral::PeripheralCommandId::Config)
+    const auto command = request.command;
+    if(command != dex::CommandId::PeripheralStatus && command != dex::CommandId::PeripheralConfig)
       return reply(dex::Error::UnsupportedOperation);
     if(request.data.data == nullptr || request.data.size == 0 || request.data.data[0] != peripheralId_)
       return reply(dex::Error::InvalidParameter);
 
-    if(command == dex::peripheral::PeripheralCommandId::Status)
+    if(command == dex::CommandId::PeripheralStatus)
     {
       if(request.data.size != 1)
         return reply(dex::Error::InvalidParameter);

@@ -23,7 +23,7 @@ namespace
 constexpr char TAG[] = "monitor_rbamp";
 constexpr std::int64_t RetryUs = 5000000;
 constexpr std::int64_t ReplayGapUs = 20000; // Bounded replay: at most 50 packets/s.
-constexpr auto MonitoringCommand = static_cast<dex::CommandId>(dex::peripheral::PeripheralCommandId::Monitoring);
+constexpr auto MonitoringCommand = dex::CommandId::PeripheralMonitoring;
 using Publication = dex::ResponsePacket<dex::peripheral::AddressedData<dex::Pikachu::MonitoringPublication>>;
 static_assert(sizeof(Publication) == 64);
 std::atomic<bool> sampleDue{false};

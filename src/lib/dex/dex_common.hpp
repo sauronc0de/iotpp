@@ -28,11 +28,16 @@ enum class Event : std::uint8_t
 
 enum class CommandId : std::uint8_t
 {
-  Info = 0x00,          //* Return device Info
-  Status,               //* Return device Status
-  Config,               //* Set/Get device configuration
-  PeripheralCmd = 0x10, //* Peripheral command
-  Reset = 0xFF          //* Reset the device
+  Info = 0x00,                 //* Return device Info
+  Status = 0x01,               //* Return device Status
+  Config = 0x02,               //* Set/Get device configuration
+  PeripheralStatus = 0x10,     //* Return peripheral Status
+  PeripheralConfig = 0x11,     //* Set/Get peripheral configuration
+  PeripheralAction = 0x12,     //* Perform peripheral action
+  PeripheralMonitoring = 0x13, //* Get/Publish monitoring data
+  PeripheralPause = 0x14,      //* Stop peripheral operation
+  PeripheralResume = 0x15,     //* Resume peripheral operation
+  Reset = 0xFF                 //* Reset the device
 };
 
 enum class State : std::uint16_t

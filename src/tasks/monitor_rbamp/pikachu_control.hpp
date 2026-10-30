@@ -43,7 +43,7 @@ public:
       const auto encoded = dex::encode_response({request.command, error, data}, response, capacity);
       return dex::ProcessResult{encoded.error, encoded.size, dex::Action::None};
     };
-    if(request.command != static_cast<dex::CommandId>(dex::peripheral::PeripheralCommandId::Config))
+    if(request.command != dex::CommandId::PeripheralConfig)
       return reply(dex::Error::UnsupportedOperation);
     if(request.data.data == nullptr || request.data.size == 0 || request.data.data[0] != peripheralId_)
       return reply(dex::Error::InvalidParameter);

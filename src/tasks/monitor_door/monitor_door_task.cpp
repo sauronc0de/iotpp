@@ -105,7 +105,7 @@ struct Monitor
     if(count == 0 || !collector.ready() || now < nextSend)
       return;
     Publication packet{};
-    packet.command = static_cast<dex::CommandId>(dex::peripheral::PeripheralCommandId::Monitoring);
+    packet.command = dex::CommandId::PeripheralMonitoring;
     packet.data.peripheralId = CONFIG_DOOR_MONITOR_PERIPHERAL_ID;
     packet.data.data = events[head];
     if(collector.send(&packet, sizeof(packet)) == ESP_OK)
