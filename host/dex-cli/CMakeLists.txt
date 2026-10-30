@@ -1,7 +1,3 @@
-cmake_minimum_required(VERSION 3.22)
-project(dex-client LANGUAGES CXX)
-add_subdirectory("../../libs/dex" "${CMAKE_CURRENT_BINARY_DIR}/libs/dex")
-
 find_package(magic_enum 0.9.7 CONFIG QUIET)
 if(NOT magic_enum_FOUND)
     include(FetchContent)
@@ -14,6 +10,4 @@ if(NOT magic_enum_FOUND)
 endif()
 
 add_executable(dex-client main.cpp)
-target_compile_features(dex-client PRIVATE cxx_std_17)
-target_compile_options(dex-client PRIVATE -Wall -Wextra -Wpedantic)
-target_link_libraries(dex-client PRIVATE dex magic_enum::magic_enum)
+target_link_libraries(dex-client PRIVATE host_options dex magic_enum::magic_enum)

@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-BUILD_DIR="$ROOT_DIR/host/dex-cli/build"
+source "$(dirname "${BASH_SOURCE[0]}")/../.utilities/host-build.sh"
 
-cmake -S "$ROOT_DIR/host/dex-cli" -B "$BUILD_DIR"
-cmake --build "$BUILD_DIR" --parallel "$@"
+build_host dex-client "$@"
