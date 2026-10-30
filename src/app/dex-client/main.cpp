@@ -58,10 +58,11 @@ struct Options
 
 void usage()
 {
-  std::cout << "Usage: dex-client [info|status|config|all|mew-status|mew-config|mew-check] [host]\n"
+  std::cout << "Usage: dex-client [info|status|config|all|monitor|mew-status|mew-config|mew-check] [host]\n"
                "                  [--port PORT] [--id ID] [--interval SECONDS]\n"
                "Mew: default instance 2; --interval writes mew-config (0 = manual only).\n"
-               "Defaults: all, 192.168.41.252:4444; timeout: 5 seconds per query.\n";
+               "Defaults: all, 192.168.41.252:4444; timeout: 5 seconds per query.\n"
+               "Monitor: listen locally on 0.0.0.0:PORT until Ctrl+C; host filters the sender (default: any).\n";
 }
 
 Options parse_options(int argc, char **argv)
@@ -112,8 +113,10 @@ Options parse_options(int argc, char **argv)
   }
 
   if(options.command != "all" && options.command != "info" && options.command != "status" && options.command != "config" &&
-     options.command != "mew-status" && options.command != "mew-config" && options.command != "mew-check")
+     options.command != "monitor" && options.command != "mew-status" && options.command != "mew-config" && options.command != "mew-check")
     throw std::runtime_error("Unknown query: " + options.command);
+  if(options.command == "monitor" && positional < 2)
+    options.host = "0.0.0.0";
   if(options.setInterval && options.command != "mew-config")
     throw std::runtime_error("--interval requires mew-config");
   unsigned port = 0;
@@ -239,6 +242,38 @@ void print_data(const dex::Response &response)
               << "\nCheck interval seconds: " << packet.data.intervalSeconds << '\n';
     break;
   }
+  case dex::CommandId::PeripheralMonitoring:
+    // Publications carry no type tag; the supported payload sizes are distinct.
+    if(data.size == sizeof(dex::peripheral::AddressedData<dex::Snorlax::MonitoringPublication>))
+    {
+      const auto packet = decode<dex::peripheral::AddressedData<dex::Snorlax::MonitoringPublication>>(data);
+      std::cout << "Snorlax instance: " << unsigned(packet.peripheralId)
+                << "\nTimestamp UTC: " << packet.data.timestamp << '\n';
+      print_enum("Door", packet.data.data);
+    }
+    else if(data.size == sizeof(dex::peripheral::AddressedData<dex::Pikachu::MonitoringPublication>))
+    {
+      const auto packet = decode<dex::peripheral::AddressedData<dex::Pikachu::MonitoringPublication>>(data);
+      const auto &sample = packet.data.data;
+      std::cout << "Pikachu instance: " << unsigned(packet.peripheralId)
+                << "\nTimestamp UTC: " << packet.data.timestamp
+                << "\nFrequency: " << sample.frequency / 100.0 << " Hz"
+                << "\nVoltage: " << sample.voltage / 10.0 << " V"
+                << "\nPeak voltage: " << sample.peakVoltage / 10.0 << " V\n";
+      for(std::size_t i = 0; i < sample.channels.size(); ++i)
+      {
+        const auto &channel = sample.channels[i];
+        std::cout << "Channel: " << i + 1
+                  << "\nCurrent: " << channel.current / 100.0 << " A"
+                  << "\nPeak current: " << channel.peakCurrent / 100.0 << " A"
+                  << "\nPower: " << channel.power << " W"
+                  << "\nPower factor: " << channel.powerFactor / 1000.0
+                  << "\nEnergy: " << channel.energy << " Wh\n";
+      }
+    }
+    else
+      throw std::runtime_error("Unsupported monitoring payload size: " + std::to_string(data.size));
+    break;
   case dex::CommandId::PeripheralAction:
     if(data.size != 1)
       throw std::runtime_error("Invalid action acknowledgement");
@@ -265,6 +300,56 @@ public:
 private:
   int fd_;
 };
+
+void monitor(const sockaddr_in &source)
+{
+  Socket udp;
+  sockaddr_in local{};
+  local.sin_family = AF_INET;
+  local.sin_addr.s_addr = htonl(INADDR_ANY);
+  local.sin_port = source.sin_port;
+  if(bind(udp.get(), reinterpret_cast<const sockaddr *>(&local), sizeof(local)) < 0)
+    throw std::system_error(errno, std::generic_category(), "UDP bind");
+  std::cout << "Listening for monitoring on 0.0.0.0:" << ntohs(local.sin_port);
+  if(source.sin_addr.s_addr != htonl(INADDR_ANY))
+    std::cout << " from " << inet_ntoa(source.sin_addr);
+  std::cout << " (Ctrl+C to stop)\n" << std::flush;
+  std::array<std::uint8_t, dex::MaxDatagramSize + 1> buffer{};
+  for(;;)
+  {
+    sockaddr_in sender{};
+    socklen_t senderSize = sizeof(sender);
+    const auto received = recvfrom(udp.get(), buffer.data(), buffer.size(), 0,
+                                  reinterpret_cast<sockaddr *>(&sender), &senderSize);
+    if(received < 0)
+    {
+      if(errno == EINTR)
+        continue;
+      throw std::system_error(errno, std::generic_category(), "recvfrom");
+    }
+    if(source.sin_addr.s_addr != htonl(INADDR_ANY) && sender.sin_addr.s_addr != source.sin_addr.s_addr)
+      continue;
+    try
+    {
+      std::cout << "\n=== Monitoring from " << inet_ntoa(sender.sin_addr) << ':' << ntohs(sender.sin_port) << " ===\n";
+      dex::Response response;
+      const auto error = dex::decode_response({buffer.data(), static_cast<std::size_t>(received)}, response);
+      if(error != dex::Error::None)
+        print_flags("Decode error", error);
+      else if(response.command != dex::CommandId::PeripheralMonitoring)
+        print_enum("Ignoring command", response.command);
+      else if(response.result != dex::Error::None)
+        print_flags("Result", response.result);
+      else
+        print_data(response);
+    }
+    catch(const std::exception &error)
+    {
+      std::cerr << "Invalid monitoring publication: " << error.what() << '\n';
+    }
+    std::cout << std::flush;
+  }
+}
 
 bool request(const sockaddr_in &target, dex::CommandId command, dex::Bytes data = {})
 {
@@ -349,6 +434,11 @@ int main(int argc, char **argv)
       throw std::runtime_error(gai_strerror(error));
     const std::unique_ptr<addrinfo, decltype(&freeaddrinfo)> resolved(addresses, freeaddrinfo);
     const auto target = *reinterpret_cast<const sockaddr_in *>(addresses->ai_addr);
+    if(options.command == "monitor")
+    {
+      monitor(target);
+      return 0;
+    }
     std::cout << "Target: " << options.host << ':' << options.port << '\n';
 
     if(options.command.rfind("mew-", 0) == 0)

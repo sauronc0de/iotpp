@@ -55,7 +55,20 @@ run dex client info
 run dex client status
 run dex client config
 run dex client all 192.168.41.252 --port 4444
+run dex client monitor                          # Listen on 0.0.0.0:4444 until Ctrl+C
+run dex client monitor 192.168.41.252 --port 4444 # Only accept publications from this device
+run dex client monitor --port 5555               # Override the local listening port
 ```
+
+`monitor` listens locally on all IPv4 interfaces. The optional host is the
+device's address and filters incoming publications by sender IP; omitting it
+accepts publications from any device. It continuously receives UDP publications and prints the sender,
+peripheral instance, acquisition timestamp (Unix UTC seconds), and decoded
+Snorlax door state or Pikachu electrical measurements. Invalid publications are
+reported and listening continues. Configure **Door GPIO monitoring → Door event
+receiver hostname or IPv4** (`CONFIG_DOOR_MONITOR_HOST`) or the RBAMP monitoring
+receiver to the IP of the machine running the client, with the same UDP port.
+The listener must be reachable over UDP from the device.
 
 The sentinel receives binary DEX requests on UDP port `4444` (configurable) and
 replies to the sender's IP and port using the raw little-endian structs in `dex.hpp`.
