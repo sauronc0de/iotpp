@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Shared project settings for build, flash and monitor, independent of cwd.
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../src" && pwd)"
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../firmware" && pwd)"
 BUILD_DIR="$PROJECT_DIR/build/target-sentinel"
 
 if ! command -v idf.py >/dev/null 2>&1; then

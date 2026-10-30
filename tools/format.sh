@@ -7,7 +7,7 @@ VERSION="0.1.0"
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(git -C "${SCRIPT_DIR}" rev-parse --show-toplevel 2>/dev/null || printf '%s' "${SCRIPT_DIR}")"
-SOURCE_DIR="${ROOT_DIR}/src"
+SOURCE_DIRS=("${ROOT_DIR}/firmware" "${ROOT_DIR}/host" "${ROOT_DIR}/libs")
 FORMAT_FILE="${ROOT_DIR}/.clang-format"
 
 supports_color() {
@@ -45,7 +45,7 @@ SYNOPSIS
     ${SCRIPT_NAME} [--check] [--help|-h] [--version|-v]
 
 DESCRIPTION
-    Recursively format C/C++ files under src/ using the project's
+    Recursively format C/C++ files under firmware/, host/ and libs/ using the project's
     .clang-format configuration.
 
 OPTIONS
@@ -79,7 +79,7 @@ while [ "$#" -gt 0 ]; do
       exit 0
       ;;
     --short-help)
-      printf '%s\n' "Format all C/C++ files in src/ using .clang-format."
+      printf '%s\n' "Format C/C++ files in firmware/, host/ and libs/ using .clang-format."
       exit 0
       ;;
     --version|-v)
@@ -99,10 +99,12 @@ command -v clang-format >/dev/null 2>&1 || {
   exit 1
 }
 
-[ -d "${SOURCE_DIR}" ] || {
-  err "Source directory not found: ${SOURCE_DIR}"
-  exit 1
-}
+for source_dir in "${SOURCE_DIRS[@]}"; do
+  [ -d "${source_dir}" ] || {
+    err "Source directory not found: ${source_dir}"
+    exit 1
+  }
+done
 
 [ -f "${FORMAT_FILE}" ] || {
   err "Configuration not found: ${FORMAT_FILE}"
@@ -110,7 +112,9 @@ command -v clang-format >/dev/null 2>&1 || {
 }
 
 mapfile -d '' files < <(
-  find "${SOURCE_DIR}" -type f \
+  find "${SOURCE_DIRS[@]}" \
+    -type d \( -name build -o -name managed_components \) -prune -o \
+    -type f \
     \( -name '*.c' -o -name '*.h' \
     -o -name '*.cpp' -o -name '*.hpp' \
     -o -name '*.cc' -o -name '*.hh' \
@@ -179,7 +183,7 @@ render_progress() {
 }
 
 printf '%sclang-format%s %s%s%s\n' \
-  "${ACCENT}" "${RESET}" "${DIM}" "${SOURCE_DIR}" "${RESET}"
+  "${ACCENT}" "${RESET}" "${DIM}" "${SOURCE_DIRS[*]}" "${RESET}"
 
 for file in "${files[@]}"; do
   relative="${file#"${ROOT_DIR}/"}"

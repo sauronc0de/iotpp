@@ -1,3 +1,4 @@
-src/build/
-src/config/build/
-src/managed_components/
+firmware/build/
+firmware/config/build/
+firmware/managed_components/
+host/*/build/

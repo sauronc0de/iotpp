@@ -16,13 +16,13 @@ Default port: `/dev/ttyUSB0`. Override it with `ESPPORT=/dev/ttyUSB1 run esp32 f
 
 Run `run esp32 menuconfig` and open **Device tasks** to enable or disable tasks.
 Save, then run `run esp32 build` and flash the resulting firmware. The selection
-is stored in the local `src/config/build/sdkconfig`. Fresh configurations enable
+is stored in the local `firmware/config/build/sdkconfig`. Fresh configurations enable
 `server_dex`, `monitor_rbamp` and `ota`; other tasks start disabled.
 
-The menu automatically discovers every `src/tasks/<name>/CMakeLists.txt`.
+The menu automatically discovers every `firmware/tasks/<name>/CMakeLists.txt`.
 Adding a new task module makes its checkbox appear on the next configuration or
 build, without editing a task registry or the menu. A task may also provide
-`src/tasks/<name>/Kconfig`; its settings are automatically included when enabled.
+`firmware/tasks/<name>/Kconfig`; its settings are automatically included when enabled.
 Only selected tasks contribute sources and startup calls to the firmware.
 
 ## OTA updates — Mew (type 151)
@@ -35,17 +35,14 @@ persistent polling configuration and a manual `FirmwareCheck` action over DEX.
 ```sh
 run esp32 menuconfig                            # Set OTA manifest URL
 run esp32 build -D FIRMWARE_RELEASE=1.0.0 -D OTA_CA_CERT=/path/to/root-ca.crt
-run ota publish --output /srv/ota                # Existing HTTPS document root
 run dex client mew-status --id 2
 run dex client mew-check --id 2
 run dex client mew-config --id 2 --interval 0     # Manual-only checks
 ```
 
-See [OTA setup, Raspberry Pi hosting, initial serial migration and protocol](src/lib/ota/README.md).
-
 ## Sentinel DEX listener
 
-The native Linux C++ client links `lib/dex` and prints decoded enums using
+The native Linux C++ client links `libs/dex` and prints decoded enums using
 `magic_enum`.
 
 ```sh

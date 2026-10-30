@@ -1,7 +1,0 @@
-list(APPEND device_task_sources "${CMAKE_CURRENT_LIST_DIR}/server_dex_task.cpp")
-list(APPEND device_task_include_dirs "${CMAKE_CURRENT_LIST_DIR}")
-list(APPEND device_task_requires esp_system freertos)
-list(APPEND device_task_libraries udp dex_server)
-set(device_task_wifi ON)
-string(APPEND device_task_headers "#include \"server_dex_task.hpp\"\n")
-string(APPEND device_task_startup "  ESP_ERROR_CHECK(start_server_dex_task());\n")

@@ -1,0 +1,10 @@
+list(APPEND device_task_requires ota)
+list(APPEND device_task_compile_definitions IOTPP_OTA=1)
+set(device_task_wifi ON)
+string(APPEND device_task_headers "#include \"ota.hpp\"\n")
+string(APPEND device_task_prepare "  ESP_ERROR_CHECK(ota::initialize());\n")
+# Start before a monitoring task's potentially blocking initial UTC synchronization.
+string(APPEND device_task_early_startup "  ESP_ERROR_CHECK(ota::start());\n")
+if("server_dex" IN_LIST DEVICE_TASKS)
+    list(APPEND device_task_requires ota_dex)
+endif()
