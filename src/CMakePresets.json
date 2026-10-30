@@ -8,7 +8,6 @@
       "cacheVariables": {
         "IDF_TARGET": "esp32",
         "APP_NAME": "sentinel",
-        "DEVICE_PROFILE": "sentinel",
         "SDKCONFIG": "${sourceDir}/config/build/sdkconfig"
       }
     }

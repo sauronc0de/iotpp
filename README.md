@@ -12,6 +12,19 @@ run dex client    # Build incrementally and query Info, Status and Config
 
 Default port: `/dev/ttyUSB0`. Override it with `ESPPORT=/dev/ttyUSB1 run esp32 flash`.
 
+## Select device tasks
+
+Run `run esp32 menuconfig` and open **Device tasks** to enable or disable tasks.
+Save, then run `run esp32 build` and flash the resulting firmware. The selection
+is stored in the local `src/config/build/sdkconfig`. Fresh configurations enable
+`server_dex`, `monitor_rbamp` and `ota`; other tasks start disabled.
+
+The menu automatically discovers every `src/tasks/<name>/CMakeLists.txt`.
+Adding a new task module makes its checkbox appear on the next configuration or
+build, without editing a task registry or the menu. A task may also provide
+`src/tasks/<name>/Kconfig`; its settings are automatically included when enabled.
+Only selected tasks contribute sources and startup calls to the firmware.
+
 ## OTA updates — Mew (type 151)
 
 Sentinel includes an independent OTA task: HTTPS checks every six hours,

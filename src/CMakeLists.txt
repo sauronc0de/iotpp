@@ -15,18 +15,7 @@ set(IOTPP_LIBRARIES dex dex_server config_store rbamp_async monitoring udp wifi 
 if(APP_NAME STREQUAL "dex-client")
     project(iotpp LANGUAGES CXX)
 else()
-    set(DEVICE_PROFILE "sentinel" CACHE STRING "Device profile from devices/")
-    if(NOT DEVICE_PROFILE MATCHES "^[a-zA-Z0-9_]+$" OR
-       NOT EXISTS "${CMAKE_SOURCE_DIR}/devices/${DEVICE_PROFILE}.cmake")
-        message(FATAL_ERROR "Unknown device profile: ${DEVICE_PROFILE}")
-    endif()
-    include("${CMAKE_SOURCE_DIR}/devices/${DEVICE_PROFILE}.cmake")
-    set(DEVICE_TASKS "AUTO" CACHE STRING "Enabled device tasks: AUTO or semicolon-separated names")
-    if(DEVICE_TASKS STREQUAL "AUTO")
-        set(DEVICE_TASKS "${DEVICE_DEFAULT_TASKS}")
-    endif()
-    list(REMOVE_DUPLICATES DEVICE_TASKS)
-    message(STATUS "Device profile: ${DEVICE_PROFILE}; tasks: ${DEVICE_TASKS}")
+    include("${CMAKE_SOURCE_DIR}/tasks/discover.cmake")
     set(SDKCONFIG "${CMAKE_SOURCE_DIR}/config/build/sdkconfig" CACHE FILEPATH "Local project configuration")
     set(SDKCONFIG_DEFAULTS "${CMAKE_SOURCE_DIR}/config/sdkconfig.defaults" CACHE STRING "Shared project defaults")
 
@@ -35,7 +24,8 @@ else()
 
     # ESP-IDF build system
     include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-    idf_build_set_property(IOTPP_DEVICE_TASKS "${DEVICE_TASKS}")
+    idf_build_set_property(IOTPP_AVAILABLE_TASKS "${available_tasks}")
+    idf_build_set_property(IOTPP_TASK_KCONFIG "${task_kconfig_path}")
 
     set(PROJECT_VER "${FIRMWARE_RELEASE}")
     project(${APP_NAME} VERSION ${FIRMWARE_RELEASE})

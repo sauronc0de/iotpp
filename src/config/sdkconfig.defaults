@@ -1,4 +1,7 @@
 # Shared firmware settings; WiFi credentials are configured locally.
+CONFIG_TASK_SERVER_DEX=y
+CONFIG_TASK_MONITOR_RBAMP=y
+CONFIG_TASK_OTA=y
 CONFIG_SENTINEL_UDP_PORT=4444
 # The cooperative I2C state machine advances between byte transactions.
 CONFIG_FREERTOS_HZ=1000

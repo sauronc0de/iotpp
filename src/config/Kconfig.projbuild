@@ -1,4 +1,5 @@
 menu "OTA updates (Mew)"
+    visible if TASK_OTA
 
     config OTA_MANIFEST_URL
         string "HTTPS manifest URL (empty disables network checks)"
@@ -35,12 +36,14 @@ menu "Sentinel WiFi and DEX"
 
     config SENTINEL_UDP_PORT
         int "DEX UDP listen port"
+        depends on TASK_SERVER_DEX
         range 1 65535
         default 4444
 
 endmenu
 
-menu "Door GPIO monitoring (opt-in monitor_door task)"
+menu "Door GPIO monitoring"
+    visible if TASK_MONITOR_DOOR
 
     config DOOR_MONITOR_GPIO
         int "Magnetic sensor RTC GPIO"
@@ -99,6 +102,7 @@ menu "Door GPIO monitoring (opt-in monitor_door task)"
 endmenu
 
 menu "rbAmp Pikachu monitoring"
+    visible if TASK_MONITOR_RBAMP
 
     config RBAMP_MONITOR_SDA_GPIO
         int "I2C SDA GPIO"
