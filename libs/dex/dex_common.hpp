@@ -2,6 +2,8 @@
 
 #include <cstdint>
 
+#include "dex_meta.hpp"
+
 namespace dex
 {
 
@@ -137,5 +139,29 @@ struct StatusData
 };
 
 #pragma pack(pop)
+
+// ---- Metadata (see dex_meta.hpp) ------------------------------------------
+constexpr bool dex_flags(State) { return true; }
+constexpr bool dex_flags(Error) { return true; }
+constexpr bool dex_flags(Notification) { return true; }
+
+constexpr auto dex_describe(const Version *)
+{
+  using Self = Version;
+  return meta::fields(DEX_FIELD(major), DEX_FIELD(minor), DEX_FIELD(patch));
+}
+
+constexpr auto dex_describe(const StatusData *)
+{
+  using Self = StatusData;
+  return meta::fields(DEX_FIELD(state), DEX_FIELD(errors), DEX_FIELD(notifications));
+}
+
+template <typename T>
+constexpr auto dex_describe(const MonitoringPublication<T> *)
+{
+  using Self = MonitoringPublication<T>;
+  return meta::fields(DEX_FIELD(timestamp).unit("s").doc("Unix UTC seconds"), DEX_FIELD(data));
+}
 
 } // namespace dex

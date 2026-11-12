@@ -1,0 +1,24 @@
+# systemd unit for an Ubuntu server. Install:
+#   sudo install -m 755 host/build/hub/iotpp-hub /usr/local/bin/
+#   sudo useradd --system --home /var/lib/iotpp-hub --create-home iotpp
+#   sudo cp host/hub/deploy/iotpp-hub.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now iotpp-hub
+[Unit]
+Description=iotpp hub (DEX IoT manager)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=iotpp
+WorkingDirectory=/var/lib/iotpp-hub
+ExecStart=/usr/local/bin/iotpp-hub --db /var/lib/iotpp-hub/iotpp-hub.db --http 0.0.0.0:8080
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/iotpp-hub
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

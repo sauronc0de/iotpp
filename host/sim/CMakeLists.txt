@@ -1,0 +1,5 @@
+add_executable(iotpp-sim main.cpp)
+target_compile_features(iotpp-sim PRIVATE cxx_std_20)
+target_link_libraries(iotpp-sim PRIVATE host_options dex)
+find_package(Threads REQUIRED)
+target_link_libraries(iotpp-sim PRIVATE Threads::Threads)

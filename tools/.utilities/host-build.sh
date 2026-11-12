@@ -7,7 +7,7 @@ build_host() {
     local target="$1"
     shift
 
-    local build_cli=OFF build_hub=OFF
+    local build_cli=OFF build_hub=OFF build_sim=OFF
     local targets=()
     case "$target" in
         dex-client)
@@ -18,9 +18,14 @@ build_host() {
             build_hub=ON
             targets=(--target iotpp-hub)
             ;;
+        iotpp-sim)
+            build_sim=ON
+            targets=(--target iotpp-sim)
+            ;;
         all)
             build_cli=ON
             build_hub=ON
+            build_sim=ON
             ;;
         *)
             echo "Unknown host target: $target" >&2
@@ -30,6 +35,7 @@ build_host() {
 
     cmake -S "$HOST_DIR" -B "$HOST_BUILD_DIR" \
         -D "IOTPP_BUILD_DEX_CLI=$build_cli" \
-        -D "IOTPP_BUILD_HUB=$build_hub"
+        -D "IOTPP_BUILD_HUB=$build_hub" \
+        -D "IOTPP_BUILD_SIM=$build_sim"
     cmake --build "$HOST_BUILD_DIR" "${targets[@]}" --parallel "$@"
 }

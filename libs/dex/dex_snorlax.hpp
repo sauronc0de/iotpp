@@ -4,6 +4,7 @@
 
 namespace dex::Snorlax
 {
+inline constexpr std::uint8_t Type = 143;
 #pragma pack(push, 1)
 enum class State : std::uint8_t
 {
@@ -21,7 +22,7 @@ struct ConfigData : dex::peripheral::ConfigData
 };
 struct InfoData : dex::peripheral::InfoData
 {
-  std::uint8_t type = 143;
+  std::uint8_t type = Type;
 };
 struct StatusData : dex::peripheral::StatusData
 {
@@ -29,4 +30,30 @@ struct StatusData : dex::peripheral::StatusData
 };
 #pragma pack(pop)
 static_assert(sizeof(MonitoringPublication) == 5);
+
+// ---- Metadata (see dex_meta.hpp) ------------------------------------------
+constexpr auto dex_describe(const ConfigData *)
+{
+  using Self = ConfigData;
+  return meta::fields(meta::base<peripheral::ConfigData>(),
+                      DEX_FIELD(enabled).boolean().doc("Door monitoring and Deep Sleep"));
+}
+
+constexpr auto dex_describe(const StatusData *)
+{
+  using Self = StatusData;
+  return meta::fields(meta::base<peripheral::StatusData>(), DEX_FIELD(doorState));
+}
+
+struct Peripheral
+{
+  static constexpr std::uint8_t type = Type;
+  static constexpr const char *name = "Snorlax";
+  static constexpr const char *description = "Door sensor with Deep Sleep";
+  static constexpr const char *signal = "door"; // Name of the scalar monitoring signal.
+  using Status = StatusData;
+  using Config = ConfigData;
+  using Action = meta::None;
+  using Monitoring = MonitoringPublication;
+};
 } // namespace dex::Snorlax

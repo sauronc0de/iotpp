@@ -22,7 +22,8 @@
   "postCreateCommand": "chmod +x .devcontainer/docker_entrypoint.sh && .devcontainer/docker_entrypoint.sh",
   "runArgs": [
     "--privileged",
-    "--publish=4444:4444/udp"
+    "--publish=4444:4444/udp",
+    "--publish=8080:8080"
   ],
   "mounts": [
     "source=/dev,target=/dev,type=bind",

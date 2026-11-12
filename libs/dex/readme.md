@@ -55,3 +55,23 @@ void on_receive(const std::uint8_t* packet, std::size_t size)
 
 Both peers use the same struct definitions. This little-endian format replaces
 the previous big-endian codec; update both peers together.
+
+## Metadata for hosts
+
+`dex_meta.hpp` lets each payload struct carry a compile-time description
+(field names, units, scale, ranges, docs) next to its definition:
+
+```cpp
+constexpr auto dex_describe(const BasicSample *)
+{
+  using Self = BasicSample;
+  return meta::fields(DEX_FIELD(voltage).unit("V").scale(0.1), DEX_FIELD(channels).label("Channel"));
+}
+constexpr bool dex_flags(Error) { return true; } // Bitmask enum.
+```
+
+Each peripheral header also exposes a `Peripheral` traits struct (type id,
+name, Status/Config/Action/Monitoring payloads), and `dex::Peripherals` in
+`dex.hpp` lists them all. Hosts such as `iotpp-hub` generate decoding,
+encoding, validation, storage and the whole web UI from this. The metadata is
+dependency-free C++17 and is never instantiated by the firmware.

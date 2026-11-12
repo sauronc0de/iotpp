@@ -50,4 +50,27 @@ struct ConfigData
 
 #pragma pack(pop)
 
+// ---- Metadata (see dex_meta.hpp) ------------------------------------------
+constexpr bool dex_flags(PeripheralCapability) { return true; }
+
+constexpr auto dex_describe(const MonitoringConfigData *)
+{
+  using Self = MonitoringConfigData;
+  return meta::fields(DEX_FIELD(samplePeriodMs).label("Sample period").unit("ms"),
+                      DEX_FIELD(publishPeriodMs).label("Publish period").unit("ms"),
+                      DEX_FIELD(enabled).boolean());
+}
+
+constexpr auto dex_describe(const InfoData *)
+{
+  using Self = InfoData;
+  return meta::fields(DEX_FIELD(id), DEX_FIELD(version), DEX_FIELD(capabilities));
+}
+
+constexpr auto dex_describe(const ConfigData *)
+{
+  using Self = ConfigData;
+  return meta::fields(DEX_FIELD(monitoring));
+}
+
 } // namespace dex::peripheral

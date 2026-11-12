@@ -8,6 +8,8 @@ run esp32 erase   # Erase all flash (asks for confirmation)
 run esp32 flash   # Flash firmware
 run dex build     # Build the native Linux DEX client
 run dex client    # Build incrementally and query Info, Status and Config
+run hub demo      # Hub web UI + simulated ESP32s on http://localhost:8080
+run hub start     # Hub for real devices (see host/hub/README.md)
 ```
 
 Default port: `/dev/ttyUSB0`. Override it with `ESPPORT=/dev/ttyUSB1 run esp32 flash`.

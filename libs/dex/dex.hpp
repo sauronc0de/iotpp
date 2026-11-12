@@ -15,6 +15,10 @@
 namespace dex
 {
 
+// Every peripheral type known to hosts. Adding a peripheral = describe its
+// payloads in its header (see dex_meta.hpp) and append its traits here.
+using Peripherals = meta::List<Pikachu::Peripheral, Snorlax::Peripheral, Mew::Peripheral>;
+
 // One packet per UDP datagram. Packed native little-endian layouts.
 inline constexpr std::size_t MaxDatagramSize = 1200;
 
