@@ -2,6 +2,7 @@ FROM espressif/idf:v6.1
 
 # Additional development tools
 RUN apt-get update && apt-get install -y \
+    cmake \
     clang-format \
     clang-tidy \
     usbutils \

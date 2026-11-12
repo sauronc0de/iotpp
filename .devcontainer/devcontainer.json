@@ -4,7 +4,7 @@
     "dockerfile": "Dockerfile"
   },
   "remoteUser": "ubuntu",
-  "remoteEnv": { "PATH": "${containerWorkspaceFolder}/tools:${containerEnv:PATH}"},
+  "remoteEnv": { "PATH": "${containerWorkspaceFolder}/tools:/home/ubuntu/.local/bin:${containerEnv:PATH}"},
   "workspaceFolder": "/workspaces/iotpp",
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/iotpp,type=bind",
   "customizations": {
@@ -21,7 +21,8 @@
   },
   "postCreateCommand": "chmod +x .devcontainer/docker_entrypoint.sh && .devcontainer/docker_entrypoint.sh",
   "runArgs": [
-    "--privileged"
+    "--privileged",
+    "--publish=4444:4444/udp"
   ],
   "mounts": [
     "source=/dev,target=/dev,type=bind",

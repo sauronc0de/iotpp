@@ -9,7 +9,7 @@
 
 namespace monitoring
 {
-inline constexpr std::uint32_t HourSeconds = 3600;
+inline constexpr std::uint32_t RetentionSeconds = 15 * 60;
 
 // Round to the nearest storage unit (half away from zero). Check before the
 // integer cast: invalid/overflowing values must never wrap or saturate.
@@ -64,7 +64,7 @@ class History
 public:
   static constexpr std::size_t capacity(std::uint32_t samplePeriodMs)
   {
-    return samplePeriodMs == 0 ? 0 : (3600000ULL + samplePeriodMs - 1) / samplePeriodMs + 1;
+    return samplePeriodMs == 0 ? 0 : (RetentionSeconds * 1000ULL + samplePeriodMs - 1) / samplePeriodMs + 1;
   }
   static constexpr std::size_t required_bytes(std::uint32_t period)
   {
@@ -97,7 +97,7 @@ public:
     while(count_ != 0)
     {
       // Unsigned subtraction also handles wrap of the 32-bit monotonic clock.
-      if(static_cast<std::uint32_t>(now - storage_[head_].capturedAt) < HourSeconds)
+      if(static_cast<std::uint32_t>(now - storage_[head_].capturedAt) < RetentionSeconds)
         break;
       pop();
       ++expired;

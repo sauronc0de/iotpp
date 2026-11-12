@@ -42,6 +42,19 @@ menu "Sentinel WiFi and DEX"
 
 endmenu
 
+menu "Monitoring receiver"
+
+    config MONITOR_HOST
+        string "Shared monitoring receiver hostname or IPv4"
+        default "192.168.41.117"
+        help
+            Destination shared by all monitoring tasks. Set this to the IP or
+            hostname of the machine running the DEX monitoring listener.
+            An empty value disables rbAmp sending and prevents door monitoring
+            from starting.
+
+endmenu
+
 menu "Door GPIO monitoring"
     visible if TASK_MONITOR_DOOR
 
@@ -75,10 +88,6 @@ menu "Door GPIO monitoring"
         int "Consecutive closed readings required"
         range 2 100
         default 5
-
-    config DOOR_MONITOR_HOST
-        string "Door event receiver hostname or IPv4 (required)"
-        default ""
 
     config DOOR_MONITOR_PORT
         int "Door event receiver UDP port"
@@ -145,19 +154,15 @@ menu "rbAmp Pikachu monitoring"
         help
             Valid samples accumulate until the publication deadline and are
             sent in a burst, without waiting for a receiver response. Samples
-            wait in the FIFO during local network failures, for up to one hour.
+            wait in the FIFO during local network failures, for up to 15 minutes.
             The fixed three-channel BASIC format uses 62 bytes per FIFO entry.
-            At 1 Hz, the one-hour FIFO needs 223262 bytes including one spare
+            At 1 Hz, the 15-minute FIFO needs 55862 bytes including one spare
             entry. Startup reports insufficient RAM and the free/largest block.
 
     config RBAMP_MONITOR_PUBLISH_PERIOD_MS
         int "Monitoring burst period (ms)"
         range 1000 3600000
         default 10000
-
-    config RBAMP_MONITOR_HOST
-        string "Monitoring receiver hostname or IPv4 (empty disables sending)"
-        default ""
 
     config RBAMP_MONITOR_PORT
         int "Monitoring receiver UDP port"

@@ -99,7 +99,7 @@ struct Monitor
       return;
     if(!collector.ready() && now >= nextNetwork)
     {
-      collector.initialize(CONFIG_DOOR_MONITOR_HOST, CONFIG_DOOR_MONITOR_PORT);
+      collector.initialize(CONFIG_MONITOR_HOST, CONFIG_DOOR_MONITOR_PORT);
       nextNetwork = now + RetryUs;
     }
     if(count == 0 || !collector.ready() || now < nextSend)
@@ -201,7 +201,7 @@ esp_err_t restore_monitor_door_config()
 
 esp_err_t start_monitor_door_task()
 {
-  if(!GPIO_IS_VALID_GPIO(Pin) || !rtc_gpio_is_valid_gpio(Pin) || CONFIG_DOOR_MONITOR_HOST[0] == '\0')
+  if(!GPIO_IS_VALID_GPIO(Pin) || !rtc_gpio_is_valid_gpio(Pin) || CONFIG_MONITOR_HOST[0] == '\0')
   {
     ESP_LOGE(TAG, "An RTC-capable input GPIO and a UDP receiver are required");
     return ESP_ERR_INVALID_ARG;

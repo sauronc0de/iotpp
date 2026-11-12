@@ -5,6 +5,7 @@
 #include <cstring>
 #include <limits>
 #include "esp_timer.h"
+#include "esp_log.h"
 #include "rbamp_std_decode.h"
 #include "sdkconfig.h"
 #ifdef ESP_PLATFORM
@@ -44,9 +45,33 @@ esp_err_t Meter::initialize(Config config)
   bus.scl_io_num = config.scl;
   bus.clk_source = I2C_CLK_SRC_DEFAULT;
   bus.glitch_ignore_cnt = 7;
-  bus.trans_queue_depth = 1;
+  bus.trans_queue_depth = 0;
   bus.flags.enable_internal_pullup = true;
   auto error = i2c_new_master_bus(&bus, &bus_);
+  if(error != ESP_OK)
+    return error;
+  // Probe on a synchronous bus; IDF does not support probing an async bus.
+  const auto probe = i2c_master_probe(bus_, config.address, 100);
+  ESP_LOGI("rbamp_async", "I2C SDA=%d SCL=%d address=0x%02x: %s", int(config.sda), int(config.scl), unsigned(config.address), esp_err_to_name(probe));
+  if(probe != ESP_OK)
+  {
+    unsigned found = 0;
+    for(std::uint8_t address = 0x08; address < 0x78; ++address)
+    {
+      if(address != config.address && i2c_master_probe(bus_, address, 20) == ESP_OK)
+      {
+        ++found;
+        ESP_LOGW("rbamp_async", "I2C device found at 0x%02x", unsigned(address));
+      }
+    }
+    ESP_LOGW("rbamp_async", "I2C scan: %u other devices found", found);
+  }
+  error = i2c_del_master_bus(bus_);
+  if(error != ESP_OK)
+    return error;
+  bus_ = nullptr;
+  bus.trans_queue_depth = 1;
+  error = i2c_new_master_bus(&bus, &bus_);
   if(error != ESP_OK)
     return error;
   i2c_device_config_t device{};

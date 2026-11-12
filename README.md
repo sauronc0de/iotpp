@@ -62,10 +62,15 @@ device's address and filters incoming publications by sender IP; omitting it
 accepts publications from any device. It continuously receives UDP publications and prints the sender,
 peripheral instance, acquisition timestamp (Unix UTC seconds), and decoded
 Snorlax door state or Pikachu electrical measurements. Invalid publications are
-reported and listening continues. Configure **Door GPIO monitoring → Door event
-receiver hostname or IPv4** (`CONFIG_DOOR_MONITOR_HOST`) or the RBAMP monitoring
-receiver to the IP of the machine running the client, with the same UDP port.
+reported and listening continues. Configure **Monitoring receiver → Shared monitoring
+receiver hostname or IPv4** (`CONFIG_MONITOR_HOST`, default `192.168.41.117`)
+to the IP of the machine running the client, with the same UDP port. All monitoring
+tasks share this destination host.
 The listener must be reachable over UDP from the device.
+The devcontainer publishes host UDP port `4444` to container UDP port `4444`.
+Rebuild the devcontainer after changing this mapping; configure the ESP32 with
+the host machine's LAN IP, not the container's private IP. A different listening
+port also needs a matching Docker UDP port mapping.
 
 The sentinel receives binary DEX requests on UDP port `4444` (configurable) and
 replies to the sender's IP and port using the raw little-endian structs in `dex.hpp`.

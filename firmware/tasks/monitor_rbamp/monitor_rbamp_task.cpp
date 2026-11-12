@@ -50,6 +50,20 @@ struct Monitor
   bool sendPending = false, draining = false, profileError = false;
   std::int64_t nextNetwork = 0, nextPublish = 0, nextSend = 0, nextAllocation = 0;
   std::uint32_t capturedAt = 0, capturedUtc = 0;
+  std::uint32_t accepted = 0, rejected = 0, sent = 0;
+  std::int64_t nextDiagnostics = 0;
+
+  void diagnostics(std::int64_t now)
+  {
+    if(now < nextDiagnostics)
+      return;
+    nextDiagnostics = now + 30000000;
+    ESP_LOGI(TAG, "Monitoring %s -> %s:%u, sample/publish=%u/%u ms; valid/rejected/sent=%u/%u/%u, queued=%u, I2C=%s, UDP=%s, last send=%s",
+             config.monitoring.enabled ? "enabled" : "disabled", CONFIG_MONITOR_HOST, unsigned(CONFIG_RBAMP_MONITOR_PORT),
+             unsigned(config.monitoring.samplePeriodMs), unsigned(config.monitoring.publishPeriodMs),
+             unsigned(accepted), unsigned(rejected), unsigned(sent), unsigned(history.size()),
+             esp_err_to_name(meter.error()), collector.ready() ? "ready" : "not ready", esp_err_to_name(collector.last_send_error()));
+  }
 
   void configuration(std::int64_t now)
   {
@@ -98,8 +112,8 @@ struct Monitor
       return;
     if(now >= nextNetwork)
     {
-      if(!collector.ready() && CONFIG_RBAMP_MONITOR_HOST[0] != '\0')
-        collector.initialize(CONFIG_RBAMP_MONITOR_HOST, CONFIG_RBAMP_MONITOR_PORT);
+      if(!collector.ready() && CONFIG_MONITOR_HOST[0] != '\0')
+        collector.initialize(CONFIG_MONITOR_HOST, CONFIG_RBAMP_MONITOR_PORT);
       nextNetwork = now + RetryUs;
     }
   }
@@ -117,7 +131,7 @@ struct Monitor
       replacement = heap_caps_malloc(bytes, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
     if(replacement == nullptr)
     {
-      ESP_LOGE(TAG, "One-hour BASIC FIFO needs %u bytes (%u ms); internal free/largest block: %u/%u bytes. No adequate RAM/PSRAM; acquisition is disabled.",
+      ESP_LOGE(TAG, "15-minute BASIC FIFO needs %u bytes (%u ms); internal free/largest block: %u/%u bytes. No adequate RAM/PSRAM; acquisition is disabled.",
                static_cast<unsigned>(bytes), unsigned(config.monitoring.samplePeriodMs),
                static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)),
                static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)));
@@ -134,7 +148,7 @@ struct Monitor
     storage = replacement;
     historySlots = slots;
     nextPublish = now + config.monitoring.publishPeriodMs * 1000LL;
-    ESP_LOGI(TAG, "One-hour FIFO: %u slots, %u bytes", unsigned(slots), unsigned(bytes));
+    ESP_LOGI(TAG, "15-minute FIFO: %u slots, %u bytes", unsigned(slots), unsigned(bytes));
   }
 
   void acquisition(std::int64_t now)
@@ -146,7 +160,12 @@ struct Monitor
     {
       dex::Pikachu::MonitoringPublication sample{};
       if(monitoring::make_basic_sample(reading, capturedUtc, sample))
+      {
         history.push(sample, capturedAt);
+        ++accepted;
+      }
+      else
+        ++rejected;
     }
     if(!sampleDue.exchange(false, std::memory_order_acquire) || !config.monitoring.enabled ||
        storage == nullptr || historySlots < monitoring::History::capacity(config.monitoring.samplePeriodMs) ||
@@ -174,7 +193,10 @@ struct Monitor
       sendPending = false;
       // This is only local lwIP completion, never a receiver acknowledgement.
       if(collector.last_send_error() == ESP_OK)
+      {
         history.consume(inFlight);
+        ++sent;
+      }
       nextSend = now + ReplayGapUs;
     }
     if(!config.monitoring.enabled)
@@ -222,6 +244,7 @@ void monitor_rbamp_task(void *)
     monitor.network(now);
     monitor.acquisition(now);
     monitor.publish(now);
+    monitor.diagnostics(now);
     if(monitor.meter.error() != previousError)
     {
       previousError = monitor.meter.error();
