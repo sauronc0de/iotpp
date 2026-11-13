@@ -19,15 +19,13 @@ public:
 
   static bool valid(const dex::Pikachu::ConfigData &config)
   {
-    const auto &m = config.monitoring;
-    return m.enabled <= 1 && m.samplePeriodMs >= 1000 && m.samplePeriodMs <= 60000 &&
-           m.publishPeriodMs >= m.samplePeriodMs && m.publishPeriodMs <= 3600000;
+    return dex::Pikachu::valid_config(config); // Same rule the hub enforces.
   }
 
   config_store::Result restore()
   {
     auto candidate = config_;
-    const auto result = config_store::load_config({25, peripheralId_}, candidate);
+    const auto result = config_store::load_config({dex::Pikachu::Type, peripheralId_}, candidate);
     if(result != config_store::Result::Ok)
       return result;
     if(!valid(candidate))
@@ -55,7 +53,7 @@ public:
     const auto encoded = reply(dex::Error::None, dex::as_bytes(candidate));
     if(encoded.error != dex::Error::None)
       return encoded;
-    const auto saved = config_store::save_config({25, peripheralId_}, candidate.data);
+    const auto saved = config_store::save_config({dex::Pikachu::Type, peripheralId_}, candidate.data);
     if(saved != config_store::Result::Ok)
       return reply(saved == config_store::Result::NotReady ? dex::Error::NotReady : dex::Error::StorageFailed);
     if(std::memcmp(&config_, &candidate.data, sizeof(config_)) != 0)

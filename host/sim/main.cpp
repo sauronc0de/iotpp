@@ -393,11 +393,7 @@ private:
       dex::peripheral::AddressedData<dex::Pikachu::ConfigData> packet{id, pikachuConfig_};
       if(write)
       {
-        if(dex::decode_data(request.data, packet) != Error::None)
-          return reply(peer, command, Error::InvalidParameter);
-        const auto &m = packet.data.monitoring;
-        if(m.enabled > 1 || m.samplePeriodMs < 1000 || m.samplePeriodMs > 60000 || m.publishPeriodMs < m.samplePeriodMs ||
-           m.publishPeriodMs > 3600000)
+        if(dex::decode_data(request.data, packet) != Error::None || !dex::Pikachu::valid_config(packet.data))
           return reply(peer, command, Error::InvalidParameter);
         pikachuConfig_ = packet.data;
       }
@@ -419,7 +415,7 @@ private:
     dex::peripheral::AddressedData<dex::Mew::ConfigData> packet{id, mewConfig_};
     if(write)
     {
-      if(dex::decode_data(request.data, packet) != Error::None || packet.data.intervalSeconds > 2592000)
+      if(dex::decode_data(request.data, packet) != Error::None || !dex::Mew::valid_config(packet.data))
         return reply(peer, command, Error::InvalidParameter);
       mewConfig_ = packet.data;
     }

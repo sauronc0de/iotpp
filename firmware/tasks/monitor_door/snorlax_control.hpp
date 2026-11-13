@@ -22,7 +22,7 @@ public:
   config_store::Result restore()
   {
     auto candidate = config_;
-    const auto result = config_store::load_config({143, peripheralId_}, candidate);
+    const auto result = config_store::load_config({dex::Snorlax::Type, peripheralId_}, candidate);
     if(result != config_store::Result::Ok)
       return result;
     if(!valid(candidate))
@@ -89,7 +89,7 @@ public:
     if(result.error == dex::Error::None && request.data.size != 1)
     {
       // The whole ConfigData is persisted. No field list or byte size here.
-      const auto saved = config_store::save_config({143, peripheralId_}, config.data);
+      const auto saved = config_store::save_config({dex::Snorlax::Type, peripheralId_}, config.data);
       if(saved != config_store::Result::Ok)
         return reply(saved == config_store::Result::NotReady ? dex::Error::NotReady : dex::Error::StorageFailed);
       if(config_.enabled != config.data.enabled)

@@ -17,6 +17,7 @@
 
 #include <array>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <stdexcept>
 #include <string>
@@ -117,7 +118,7 @@ constexpr void visit_item(const Item &item, F &f)
 {
   if constexpr(BaseMarker<Item>)
     for_each_field<typename base_of_marker<Item>::type>(f);
-  else
+  else if constexpr(!std::is_same_v<Item, dex::meta::Override>)
     f(item);
 }
 
@@ -129,6 +130,63 @@ constexpr void for_each_field(F &&f)
     std::apply([&](const auto &...items) { (visit_item<T>(items, f), ...); },
                dex_describe(static_cast<const T *>(nullptr)));
 }
+
+// Path overrides (dex::meta::at) declared by T and its bases.
+template <typename T>
+void collect_overrides(std::vector<dex::meta::Override> &out)
+{
+  if constexpr(Described<T>)
+    std::apply(
+        [&](const auto &...items) {
+          (
+              [&](const auto &item) {
+                using Item = std::decay_t<decltype(item)>;
+                if constexpr(BaseMarker<Item>)
+                  collect_overrides<typename base_of_marker<Item>::type>(out);
+                else if constexpr(std::is_same_v<Item, dex::meta::Override>)
+                  out.push_back(item);
+              }(items),
+              ...);
+        },
+        dex_describe(static_cast<const T *>(nullptr)));
+}
+
+// Walk context of a top-level payload: its overrides, and whether input may
+// change read-only fields (it may not when applying user writes).
+struct Context
+{
+  std::vector<dex::meta::Override> overrides;
+  bool enforceReadOnly = false;
+};
+
+template <typename T>
+Context context_of(bool enforceReadOnly = false)
+{
+  Context context;
+  collect_overrides<T>(context.overrides);
+  context.enforceReadOnly = enforceReadOnly;
+  return context;
+}
+
+// Metadata of the field at `key` ("monitoring.samplePeriodMs") after
+// overrides; read-only propagates from the parent.
+inline FieldInfo resolve(FieldInfo info, const std::string &key, const Context *context, bool parentReadOnly)
+{
+  info.readOnly = info.readOnly || parentReadOnly;
+  if(context)
+    for(const auto &o : context->overrides)
+      if(key == o.path)
+      {
+        if(o.hasRange)
+          info.min = o.min, info.max = o.max;
+        info.readOnly = info.readOnly || o.readOnly;
+        if(o.doc)
+          info.doc = o.doc;
+      }
+  return info;
+}
+
+inline std::string child_key(const std::string &key, const char *name) { return key.empty() ? name : key + "." + name; }
 
 template <typename T>
 constexpr std::size_t described_size()
@@ -301,10 +359,19 @@ json to_json(const T &value)
   return to_json<T>(&value);
 }
 
+inline std::string number_text(double value)
+{
+  char text[32];
+  std::snprintf(text, sizeof(text), "%g", value);
+  return text;
+}
+
 // ---- parse ------------------------------------------------------------------
 // Missing object keys keep the current value: callers start from a GET result.
+// With an enforcing context, read-only fields may only be repeated unchanged.
 template <typename T>
-void parse(const json &j, void *address, const FieldInfo &info = {}, const std::string &path = "$")
+void parse(const json &j, void *address, const FieldInfo &info = {}, const std::string &path = "$",
+           const Context *context = nullptr, const std::string &key = "")
 {
   if constexpr(is_char_array_v<T>)
   {
@@ -322,7 +389,8 @@ void parse(const json &j, void *address, const FieldInfo &info = {}, const std::
     if(!j.is_array() || j.size() > std::tuple_size_v<T>)
       throw Error(path + ": expected an array of up to " + std::to_string(std::tuple_size_v<T>) + " items");
     for(std::size_t i = 0; i < j.size(); ++i)
-      parse<E>(j[i], static_cast<std::uint8_t *>(address) + i * sizeof(E), info, path + "[" + std::to_string(i) + "]");
+      parse<E>(j[i], static_cast<std::uint8_t *>(address) + i * sizeof(E), info, path + "[" + std::to_string(i) + "]",
+               context, key);
   }
   else if constexpr(std::is_enum_v<T>)
   {
@@ -335,8 +403,8 @@ void parse(const json &j, void *address, const FieldInfo &info = {}, const std::
       throw Error(path + ": expected a number");
     const double value = j.is_boolean() ? (j.get<bool>() ? 1.0 : 0.0) : j.get<double>();
     if(!std::isfinite(value) || value < info.min || value > info.max)
-      throw Error(path + ": " + std::to_string(value) + " outside [" + std::to_string(info.min) + ", " +
-                  std::to_string(info.max) + "]");
+      throw Error(path + ": " + number_text(value) + " outside [" + number_text(info.min) + ", " +
+                  number_text(info.max) + "]");
     const double raw = std::is_floating_point_v<T> ? value / info.scale : std::round(value / info.scale);
     if(raw < static_cast<double>(std::numeric_limits<T>::lowest()) || raw > static_cast<double>(std::numeric_limits<T>::max()))
       throw Error(path + ": does not fit in " + number_type<T>());
@@ -349,17 +417,41 @@ void parse(const json &j, void *address, const FieldInfo &info = {}, const std::
       throw Error(path + ": expected an object");
     for_each_field<T>([&](const auto &field) {
       using M = typename std::decay_t<decltype(field)>::Member;
-      if(const auto it = j.find(field.info.name); it != j.end())
-        parse<M>(*it, const_cast<std::uint8_t *>(member_address<T>(address, field)), field.info,
-                     path + "." + field.info.name);
+      const auto it = j.find(field.info.name);
+      if(it == j.end())
+        return;
+      const auto childKey = child_key(key, field.info.name);
+      const auto childInfo = resolve(field.info, childKey, context, info.readOnly);
+      auto *member = const_cast<std::uint8_t *>(member_address<T>(address, field));
+      // Leaves of a read-only subtree are compared one by one (structs recurse).
+      constexpr bool compound = std::is_class_v<M> && !is_std_array<M>::value;
+      if(childInfo.readOnly && context && context->enforceReadOnly && !compound)
+      {
+        if(to_json<M>(member, childInfo) != *it)
+          throw Error(path + "." + field.info.name + ": read-only");
+        return;
+      }
+      parse<M>(*it, member, childInfo, path + "." + field.info.name, context, childKey);
     });
   }
 }
 
+// Top-level parse of a payload (its own overrides apply).
 template <typename T>
 T parse(const json &j, T value = {})
 {
-  parse<T>(j, &value);
+  const auto context = context_of<T>();
+  parse<T>(j, &value, {}, "$", &context);
+  return value;
+}
+
+// Apply a user patch onto `current` (device values): read-only fields frozen.
+template <typename T>
+T patch(const json &current, const json &changes)
+{
+  T value = parse<T>(current);
+  const auto context = context_of<T>(true);
+  parse<T>(changes, &value, {}, "$", &context);
   return value;
 }
 
@@ -383,12 +475,12 @@ inline void add_info(json &out, const FieldInfo &info)
 }
 
 template <typename T>
-json schema(json &enums, const FieldInfo &info = {})
+json schema(json &enums, const FieldInfo &info = {}, const Context *context = nullptr, const std::string &key = "")
 {
   if constexpr(is_char_array_v<T>)
     return {{"kind", "string"}, {"maxLength", sizeof(T) - 1}};
   else if constexpr(is_std_array<T>::value)
-    return {{"kind", "array"}, {"size", std::tuple_size_v<T>}, {"items", schema<typename T::value_type>(enums, info)}};
+    return {{"kind", "array"}, {"size", std::tuple_size_v<T>}, {"items", schema<typename T::value_type>(enums, info, context, key)}};
   else if constexpr(std::is_enum_v<T>)
     return {{"kind", FlagsEnum<T> ? "flags" : "enum"}, {"enum", enum_schema<T>(enums)}};
   else if constexpr(std::is_arithmetic_v<T>)
@@ -409,13 +501,23 @@ json schema(json &enums, const FieldInfo &info = {})
     json fields = json::array();
     for_each_field<T>([&](const auto &field) {
       using M = typename std::decay_t<decltype(field)>::Member;
+      const auto childKey = child_key(key, field.info.name);
+      const auto childInfo = resolve(field.info, childKey, context, info.readOnly);
       json entry;
-      add_info(entry, field.info);
-      entry["type"] = schema<M>(enums, field.info);
+      add_info(entry, childInfo);
+      entry["type"] = schema<M>(enums, childInfo, context, childKey);
       fields.push_back(std::move(entry));
     });
     return {{"kind", "struct"}, {"name", type_name<T>()}, {"size", sizeof(T)}, {"fields", std::move(fields)}};
   }
+}
+
+// Top-level schema of a payload (its own overrides apply).
+template <typename T>
+json schema_of(json &enums)
+{
+  const auto context = context_of<T>();
+  return schema<T>(enums, {}, &context);
 }
 
 // ---- signals --------------------------------------------------------------------

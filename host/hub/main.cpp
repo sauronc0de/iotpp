@@ -28,6 +28,7 @@ struct Options
   std::string webRoot;
   int pollSeconds = 5;
   int timeoutMs = 1500;
+  int pollWorkers = 8;
   int retentionDays = 90;
   bool discover = true;
   std::vector<std::string> devices;
@@ -43,6 +44,7 @@ void usage()
                "  --device HOST[:PORT]  Add a device at startup (repeatable)\n"
                "  --poll SECONDS        Status polling interval (default 5)\n"
                "  --timeout MS          DEX request timeout (default 1500)\n"
+               "  --poll-workers N      Concurrent device polls (default 8)\n"
                "  --retention DAYS      Keep samples this long (default 90, 0 = forever)\n"
                "  --no-discover         Do not broadcast a DEX Info discovery at startup\n"
                "  --web-root DIR        Serve the UI from DIR instead of the embedded copy (development)\n";
@@ -91,6 +93,8 @@ Options parse(int argc, char **argv)
       options.pollSeconds = number(value(), 1, 3600, arg);
     else if(arg == "--timeout")
       options.timeoutMs = number(value(), 50, 30000, arg);
+    else if(arg == "--poll-workers")
+      options.pollWorkers = number(value(), 1, 256, arg);
     else if(arg == "--retention")
       options.retentionDays = number(value(), 0, 36500, arg);
     else if(arg == "--no-discover")
@@ -122,8 +126,10 @@ int main(int argc, char **argv)
     hub::Storage storage(options.database);
     hub::EventBus bus;
     hub::DeviceManager devices(storage, bus,
-                               {options.devicePort, std::chrono::milliseconds(options.timeoutMs),
-                                std::chrono::seconds(options.pollSeconds)});
+                               {.devicePort = options.devicePort,
+                                .timeout = std::chrono::milliseconds(options.timeoutMs),
+                                .pollInterval = std::chrono::seconds(options.pollSeconds),
+                                .pollWorkers = static_cast<std::size_t>(options.pollWorkers)});
     hub::DexLink link(options.udpPort, [&](const hub::Endpoint &from, dex::CommandId command, const hub::Reply &reply) {
       devices.on_datagram(from, command, reply);
     });

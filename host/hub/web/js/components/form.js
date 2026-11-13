@@ -15,7 +15,8 @@ export function SchemaForm({ type, value, onChange, field = {}, disabled }) {
         const child = html`<${SchemaForm} type=${f.type} value=${value?.[f.name]} field=${f}
           disabled=${disabled || f.readonly} onChange=${(v) => onChange(setIn(value, f.name, v))} />`;
         return ['struct', 'array'].includes(f.type.kind)
-          ? html`<fieldset><legend>${f.label}</legend>${child}</fieldset>`
+          ? html`<fieldset><legend>${f.label}${f.readonly ? ' · read-only' : ''}</legend>
+              ${f.doc ? html`<span class="hint">${f.doc}</span>` : null}${child}</fieldset>`
           : html`<div class="field"><label>${f.label}${f.doc ? html`<span class="hint">${f.doc}</span>` : null}</label>${child}</div>`;
       })}</div>`;
     case 'array':

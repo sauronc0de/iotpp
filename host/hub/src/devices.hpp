@@ -28,6 +28,7 @@ struct DeviceOptions
   std::chrono::seconds pollInterval{5};
   std::chrono::seconds infoInterval{300};
   int offlineAfter = 3; // Consecutive failed polls.
+  std::size_t pollWorkers = 8; // Upper bound of concurrent device polls.
 };
 
 class DeviceManager

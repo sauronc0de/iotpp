@@ -1,9 +1,13 @@
 #pragma once
 
-// UDP transport for DEX. One socket serves both directions: requests are sent
-// from it and replies are matched by (device IP, command); everything else
-// (monitoring publications, pushed status, discovery replies) is forwarded
-// to the unsolicited handler. Requests to the same device are serialized.
+// UDP transport for DEX.
+// - The listening socket (DEX port) receives everything unsolicited:
+//   monitoring publications, pushed status and discovery replies.
+// - Each request/response exchange uses its own ephemeral socket connected
+//   to the device. DEX replies carry no sequence number, so isolating the
+//   exchange is what guarantees a late reply to an earlier (timed-out)
+//   request can never be taken as the answer to a later one.
+// Requests to the same device are serialized (one exchange at a time).
 
 #include "dex.hpp"
 
@@ -11,8 +15,6 @@
 #include <chrono>
 #include <cstdint>
 #include <functional>
-#include <future>
-#include <list>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -64,24 +66,14 @@ public:
   Counters counters() const;
 
 private:
-  struct Pending
-  {
-    std::uint64_t id;
-    std::uint32_t ip;
-    dex::CommandId command;
-    std::promise<Reply> promise;
-  };
-
   void receive_loop();
   std::shared_ptr<std::mutex> device_lock(std::uint32_t ip);
-  bool send_to(const Endpoint &to, std::span<const std::uint8_t> bytes);
+  void count(std::uint64_t Counters::*counter);
 
   int fd_ = -1;
   Handler unsolicited_;
   std::atomic<bool> running_{true};
   mutable std::mutex mutex_;
-  std::list<Pending> pending_;
-  std::uint64_t nextId_ = 0;
   std::map<std::uint32_t, std::shared_ptr<std::mutex>> deviceLocks_;
   Counters counters_;
   std::thread thread_;

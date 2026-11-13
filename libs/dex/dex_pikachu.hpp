@@ -31,6 +31,9 @@ using MonitoringPublication = dex::MonitoringPublication<BasicSample>;
 struct ConfigData : dex::peripheral::ConfigData
 {
 };
+inline constexpr std::uint32_t MinSamplePeriodMs = 1000;
+inline constexpr std::uint32_t MaxSamplePeriodMs = 60000;
+inline constexpr std::uint32_t MaxPublishPeriodMs = 3600000;
 struct InfoData : dex::peripheral::InfoData
 {
   std::uint8_t type = Type;
@@ -43,6 +46,14 @@ struct StatusData : dex::peripheral::StatusData
 static_assert(sizeof(BasicChannelSample) == 16);
 static_assert(sizeof(BasicSample) == 54);
 static_assert(sizeof(MonitoringPublication) == 58);
+
+// Single source of the configuration rule: firmware and hub both call it.
+inline bool valid_config(const ConfigData &config)
+{
+  const auto &m = config.monitoring;
+  return m.enabled <= 1 && m.samplePeriodMs >= MinSamplePeriodMs && m.samplePeriodMs <= MaxSamplePeriodMs &&
+         m.publishPeriodMs >= m.samplePeriodMs && m.publishPeriodMs <= MaxPublishPeriodMs;
+}
 
 // ---- Metadata (see dex_meta.hpp) ------------------------------------------
 constexpr auto dex_describe(const BasicChannelSample *)
@@ -64,6 +75,14 @@ constexpr auto dex_describe(const BasicSample *)
                       DEX_FIELD(channels).label("Channel"));
 }
 
+constexpr auto dex_describe(const ConfigData *)
+{
+  return meta::fields(meta::base<peripheral::ConfigData>(),
+                      meta::at("monitoring.samplePeriodMs").range(MinSamplePeriodMs, MaxSamplePeriodMs),
+                      meta::at("monitoring.publishPeriodMs").range(MinSamplePeriodMs, MaxPublishPeriodMs)
+                          .describe("Not shorter than the sample period"));
+}
+
 // Peripheral traits: everything a host needs to drive this peripheral.
 struct Peripheral
 {
@@ -74,5 +93,6 @@ struct Peripheral
   using Config = ConfigData;
   using Action = meta::None;
   using Monitoring = MonitoringPublication;
+  static bool valid(const Config &config) { return valid_config(config); }
 };
 } // namespace dex::Pikachu

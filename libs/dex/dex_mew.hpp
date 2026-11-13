@@ -69,6 +69,9 @@ static_assert(sizeof(SlotData) == 53);
 static_assert(sizeof(StatusData) == 166);
 static_assert(sizeof(ConfigData) == 4);
 
+inline constexpr std::uint32_t MaxCheckIntervalSeconds = 2592000; // 30 days.
+inline bool valid_config(const ConfigData &config) { return config.intervalSeconds <= MaxCheckIntervalSeconds; }
+
 // ---- Metadata (see dex_meta.hpp) ------------------------------------------
 constexpr auto dex_describe(const SlotData *)
 {
@@ -90,7 +93,7 @@ constexpr auto dex_describe(const StatusData *)
 constexpr auto dex_describe(const ConfigData *)
 {
   using Self = ConfigData;
-  return meta::fields(DEX_FIELD(intervalSeconds).label("Check interval").unit("s").range(0, 2592000)
+  return meta::fields(DEX_FIELD(intervalSeconds).label("Check interval").unit("s").range(0, MaxCheckIntervalSeconds)
                           .doc("0 = manual checks only"));
 }
 
@@ -109,5 +112,6 @@ struct Peripheral
   using Config = ConfigData;
   using Action = ActionData;
   using Monitoring = meta::None;
+  static bool valid(const Config &config) { return valid_config(config); }
 };
 } // namespace dex::Mew

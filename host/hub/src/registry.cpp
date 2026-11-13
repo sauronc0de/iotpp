@@ -106,20 +106,26 @@ void add_type(Built &built, json &enums)
     static_assert(std::is_base_of_v<dex::StatusData, S>, "Peripheral Status must derive from dex::StatusData");
     t.hasStatus = true;
     t.decodeStatus = decoder<S>();
-    entry["status"] = reflect::schema<S>(enums);
+    entry["status"] = reflect::schema_of<S>(enums);
   }
   if constexpr(present<C>)
   {
     t.hasConfig = true;
     t.decodeConfig = decoder<C>();
-    t.encodeConfig = encoder<C>();
-    entry["config"] = reflect::schema<C>(enums);
+    t.encodeConfig = [](const json &current, const json &changes) {
+      const auto config = reflect::patch<C>(current, changes);
+      if constexpr(requires { P::valid(config); })
+        if(!P::valid(config))
+          throw reflect::Error(std::string(P::name) + " configuration rejected by its DEX validation rule");
+      return bytes_of(config);
+    };
+    entry["config"] = reflect::schema_of<C>(enums);
   }
   if constexpr(present<A>)
   {
     t.hasAction = true;
     t.encodeAction = encoder<A>();
-    entry["action"] = reflect::schema<A>(enums);
+    entry["action"] = reflect::schema_of<A>(enums);
     entry["actionDefault"] = reflect::to_json(A{});
   }
   if constexpr(present<M>)
@@ -142,7 +148,7 @@ void add_type(Built &built, json &enums)
     for(const auto &signal : t.signals)
       signals.push_back(reflect::signal_json(signal));
     entry["signals"] = std::move(signals);
-    entry["monitoring"] = reflect::schema<M>(enums);
+    entry["monitoring"] = reflect::schema_of<M>(enums);
   }
   entry["features"] = {{"status", t.hasStatus}, {"config", t.hasConfig}, {"action", t.hasAction},
                        {"monitoring", t.hasMonitoring}};
@@ -186,10 +192,10 @@ struct Registry
         {"maxDatagram", dex::MaxDatagramSize},
         {"commands", std::move(commands)},
         {"device",
-         {{"status", reflect::schema<dex::StatusData>(enums)},
-          {"config", reflect::schema<dex::device::ConfigData>(enums)},
-          {"peripheralInfo", reflect::schema<dex::peripheral::InfoData>(enums)}}},
-        {"peripheralStatus", reflect::schema<dex::peripheral::StatusData>(enums)},
+         {{"status", reflect::schema_of<dex::StatusData>(enums)},
+          {"config", reflect::schema_of<dex::device::ConfigData>(enums)},
+          {"peripheralInfo", reflect::schema_of<dex::peripheral::InfoData>(enums)}}},
+        {"peripheralStatus", reflect::schema_of<dex::peripheral::StatusData>(enums)},
         {"capabilities", reflect::enum_schema<dex::peripheral::PeripheralCapability>(enums)},
         {"results", reflect::enum_schema<dex::Error>(enums)},
         {"types", built.types_schema},

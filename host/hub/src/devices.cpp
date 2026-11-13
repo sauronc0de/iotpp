@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cstdio>
 #include <tuple>
-#include <future>
 #include <iostream>
 
 namespace hub
@@ -258,9 +257,10 @@ json DeviceManager::execute(const std::string &key, dex::CommandId command, std:
         {
           execute(key, dex::CommandId::PeripheralConfig, pid);
           load();
+          if(current.is_null())
+            throw reflect::Error("Cannot read the current configuration from the device");
         }
-        current.merge_patch(data);
-        body = type->encodeConfig(current);
+        body = type->encodeConfig(current, data);
       }
       else
       {
@@ -642,20 +642,25 @@ void DeviceManager::poll_loop()
           device.nextPoll = now + (device.online || device.lastSeen == 0 ? interval : std::max<std::int64_t>(interval * 6, 30000));
         }
     }
-    std::vector<std::future<void>> jobs;
-    for(const auto &key : due)
-      jobs.push_back(std::async(std::launch::async, [this, key] {
+    // A bounded set of workers drains the due list: concurrency never exceeds
+    // pollWorkers, however many devices are pending or offline.
+    std::atomic<std::size_t> next{0};
+    const auto work = [&] {
+      for(std::size_t i; (i = next++) < due.size();)
         try
         {
-          poll(key);
+          poll(due[i]);
         }
         catch(const std::exception &error)
         {
-          std::cerr << "Poll " << key << ": " << error.what() << '\n';
+          std::cerr << "Poll " << due[i] << ": " << error.what() << '\n';
         }
-      }));
-    for(auto &job : jobs)
-      job.wait();
+    };
+    std::vector<std::thread> workers;
+    for(std::size_t i = 0; i < std::min(options_.pollWorkers, due.size()); ++i)
+      workers.emplace_back(work);
+    for(auto &worker : workers)
+      worker.join();
     std::unique_lock lock(wakeMutex_);
     wake_.wait_for(lock, std::chrono::seconds(1));
   }

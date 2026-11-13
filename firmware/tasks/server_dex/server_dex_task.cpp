@@ -36,7 +36,9 @@ namespace
 {
 #ifdef IOTPP_OTA
 const OtaPeripheral mew(CONFIG_OTA_PERIPHERAL_ID);
+#endif
 
+// Info lists every enabled peripheral with its type, whatever the task selection.
 dex::ProcessResult device_info(const dex::Request &request, std::uint8_t *response, std::size_t capacity)
 {
   // All typed peripheral InfoData layouts share the same six-byte representation.
@@ -44,7 +46,7 @@ dex::ProcessResult device_info(const dex::Request &request, std::uint8_t *respon
   const dex::Version version{FIRMWARE_VERSION};
   std::memcpy(payload, &version, sizeof(version));
   std::size_t size = sizeof(version);
-  const auto append = [&](std::uint8_t id, std::uint8_t type, dex::peripheral::PeripheralCapability capabilities) {
+  [[maybe_unused]] const auto append = [&](std::uint8_t id, std::uint8_t type, dex::peripheral::PeripheralCapability capabilities) {
     dex::Mew::InfoData info{};
     info.id = id;
     info.version = {1, 0, 0};
@@ -53,18 +55,19 @@ dex::ProcessResult device_info(const dex::Request &request, std::uint8_t *respon
     std::memcpy(payload + size, &info, sizeof(info));
     size += sizeof(info);
   };
-  using Capability = dex::peripheral::PeripheralCapability;
+  using Capability [[maybe_unused]] = dex::peripheral::PeripheralCapability;
 #ifdef IOTPP_MONITOR_DOOR
-  append(CONFIG_DOOR_MONITOR_PERIPHERAL_ID, 143, static_cast<Capability>(unsigned(Capability::Monitoring) | unsigned(Capability::Config)));
+  append(CONFIG_DOOR_MONITOR_PERIPHERAL_ID, dex::Snorlax::Type, static_cast<Capability>(unsigned(Capability::Monitoring) | unsigned(Capability::Config)));
 #endif
 #ifdef IOTPP_MONITOR_RBAMP
-  append(CONFIG_RBAMP_MONITOR_PERIPHERAL_ID, 25, static_cast<Capability>(unsigned(Capability::Monitoring) | unsigned(Capability::Config)));
+  append(CONFIG_RBAMP_MONITOR_PERIPHERAL_ID, dex::Pikachu::Type, static_cast<Capability>(unsigned(Capability::Monitoring) | unsigned(Capability::Config)));
 #endif
+#ifdef IOTPP_OTA
   append(CONFIG_OTA_PERIPHERAL_ID, dex::Mew::Type, static_cast<Capability>(unsigned(Capability::Actions) | unsigned(Capability::Config)));
+#endif
   const auto encoded = dex::encode_response({request.command, dex::Error::None, {payload, size}}, response, capacity);
   return {encoded.error, encoded.size, dex::Action::None};
 }
-#endif
 
 dex::ProcessResult peripheral_request(const dex::Request &request, std::uint8_t *response, std::size_t capacity)
 {
@@ -94,11 +97,7 @@ dex::ProcessResult peripheral_request(const dex::Request &request, std::uint8_t 
 
 void server_dex_task(void *)
 {
-#ifdef IOTPP_OTA
   const dex::Server server(dex::Version{FIRMWARE_VERSION}, peripheral_request, device_info);
-#else
-  const dex::Server server(dex::Version{FIRMWARE_VERSION}, peripheral_request);
-#endif
   udp::Server transport;
   // Keep one extra byte so truncated oversized datagrams are still rejected.
   // Only this task uses the buffers; static storage keeps them off the task stack.

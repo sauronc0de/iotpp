@@ -39,6 +39,8 @@ The hub derives everything else from those descriptions at compile time:
 |---|---|
 | Binary ⇄ JSON (engineering units, enum names) | `reflect::to_json` / `reflect::parse` |
 | Validation of writes (ranges, enum values, sizes) | `parse` + field `range()` / numeric limits |
+| Peripheral-specific limits on shared sub-structs | `meta::at("path").range(..)` / `.readonly()` |
+| Cross-field rules, shared with the firmware | traits `static bool valid(const Config &)` |
 | Monitoring signals (flattened leaves, labels, units) | `collect_signals` / `collect_values` |
 | Web forms, status views, action buttons, charts | `/api/schema` consumed by the UI |
 | Enum/flag names | `magic_enum` (flags detected via `dex_flags`) |
@@ -67,8 +69,25 @@ Nothing in the hub or the web UI names a concrete peripheral.
      using Config = ConfigData;            // or dex::meta::None
      using Action = ActionData;            // or dex::meta::None
      using Monitoring = MonitoringPublication; // or dex::meta::None
+     static bool valid(const Config &c) { return valid_config(c); } // optional
    };
    ```
+
+   Tighten or freeze fields inherited from shared structs by path, and keep
+   the limits as constants the firmware uses too:
+
+   ```cpp
+   constexpr auto dex_describe(const ConfigData *)
+   {
+     return meta::fields(meta::base<peripheral::ConfigData>(),
+                         meta::at("monitoring.samplePeriodMs").range(MinSamplePeriodMs, MaxSamplePeriodMs),
+                         meta::at("monitoring").readonly());   // whole subtree
+   }
+   ```
+
+   The firmware validates with the same `valid_config()`; the hub checks
+   ranges, read-only fields and `valid()` before sending, and the UI shows
+   the limits and disables read-only inputs.
 3. Append it to `dex::Peripherals` in [dex.hpp](../../libs/dex/dex.hpp) and rebuild.
 
 The web UI then shows its status, a config form with validation, action
@@ -102,8 +121,18 @@ filtered and acknowledged.
 | GET | `/api/stream` | SSE: `device`, `samples`, `event`, `ack`, `removed` |
 | GET | `/api/stats` | Counters |
 
-Config writes are merged onto the last values read from the device, so a
+Config writes are applied onto the last values read from the device, so a
 partial object such as `{"monitoring": {"publishPeriodMs": 5000}}` is enough.
+Read-only fields may be repeated unchanged but not modified.
+
+## Transport
+
+The DEX port (4444) socket receives only unsolicited traffic: monitoring
+publications, pushed status and discovery replies. Every request opens its
+own ephemeral socket connected to the device, so a late reply to a timed-out
+request can never be mistaken for the answer to a later one (DEX replies have
+no sequence number). Exchanges with one device are serialized; polling runs
+on at most `--poll-workers` (default 8) concurrent workers.
 
 ## Storage
 
@@ -119,7 +148,7 @@ acknowledged events hourly.
 host/hub/main.cpp           options, wiring, signals
 host/hub/src/reflect.hpp    generic DEX reflection (JSON, schema, signals)
 host/hub/src/registry.*     peripheral types from dex::Peripherals, /api/schema
-host/hub/src/dex_link.*     UDP transport, request/reply matching
+host/hub/src/dex_link.*     UDP transport: listener + one socket per exchange
 host/hub/src/devices.*      inventory, polling, commands, ingestion, events
 host/hub/src/storage.*      SQLite
 host/hub/src/http_api.*     REST, SSE, static files

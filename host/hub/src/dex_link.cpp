@@ -13,6 +13,35 @@
 
 namespace hub
 {
+namespace
+{
+class Socket
+{
+public:
+  Socket() : fd_(socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0))
+  {
+    if(fd_ < 0)
+      throw std::system_error(errno, std::generic_category(), "socket");
+  }
+  ~Socket() { close(fd_); }
+  Socket(const Socket &) = delete;
+  Socket &operator=(const Socket &) = delete;
+  int get() const { return fd_; }
+
+private:
+  int fd_;
+};
+
+sockaddr_in address_of(const Endpoint &endpoint)
+{
+  sockaddr_in address{};
+  address.sin_family = AF_INET;
+  address.sin_addr.s_addr = endpoint.ip;
+  address.sin_port = htons(endpoint.port);
+  return address;
+}
+} // namespace
+
 std::string Endpoint::address() const
 {
   char text[INET_ADDRSTRLEN]{};
@@ -63,17 +92,10 @@ DexLink::~DexLink()
   close(fd_);
 }
 
-bool DexLink::send_to(const Endpoint &to, std::span<const std::uint8_t> bytes)
+void DexLink::count(std::uint64_t Counters::*counter)
 {
-  sockaddr_in target{};
-  target.sin_family = AF_INET;
-  target.sin_addr.s_addr = to.ip;
-  target.sin_port = htons(to.port);
-  const auto sent = sendto(fd_, bytes.data(), bytes.size(), 0, reinterpret_cast<const sockaddr *>(&target), sizeof(target));
   std::lock_guard lock(mutex_);
-  if(sent == static_cast<ssize_t>(bytes.size()))
-    ++counters_.sent;
-  return sent == static_cast<ssize_t>(bytes.size());
+  ++(counters_.*counter);
 }
 
 std::shared_ptr<std::mutex> DexLink::device_lock(std::uint32_t ip)
@@ -95,33 +117,55 @@ std::optional<Reply> DexLink::request(const Endpoint &to, dex::CommandId command
   if(sent)
     sent->assign(packet.begin(), packet.begin() + encoded.size);
 
-  // One outstanding request per device: replies carry no sequence number.
   const auto serial = device_lock(to.ip);
   std::lock_guard deviceGuard(*serial);
-  std::future<Reply> future;
-  std::uint64_t id = 0;
+
+  // A fresh socket per exchange, connected to the device: the kernel only
+  // delivers datagrams from that peer, and replies to earlier exchanges hit
+  // sockets that no longer exist.
+  Socket udp;
+  const auto target = address_of(to);
+  if(connect(udp.get(), reinterpret_cast<const sockaddr *>(&target), sizeof(target)) < 0 ||
+     send(udp.get(), packet.data(), encoded.size, 0) != static_cast<ssize_t>(encoded.size))
   {
-    std::lock_guard lock(mutex_);
-    id = ++nextId_;
-    future = pending_.insert(pending_.end(), Pending{id, to.ip, command, {}})->promise.get_future();
+    count(&Counters::timeouts);
+    return std::nullopt;
   }
-  std::optional<Reply> reply;
-  if(send_to(to, {packet.data(), encoded.size}) && future.wait_for(timeout) == std::future_status::ready)
-    reply = future.get();
-  std::lock_guard lock(mutex_);
-  if(!reply)
+  count(&Counters::sent);
+
+  std::array<std::uint8_t, dex::MaxDatagramSize + 1> buffer{};
+  const auto deadline = std::chrono::steady_clock::now() + timeout;
+  for(;;)
   {
-    ++counters_.timeouts;
-    // The receive thread may have fulfilled it just now; erase only if still queued.
-    pending_.remove_if([id](const Pending &p) { return p.id == id; });
+    const auto left = std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now());
+    pollfd descriptor{udp.get(), POLLIN, 0};
+    if(left.count() <= 0 || poll(&descriptor, 1, static_cast<int>(left.count())) <= 0)
+      break;
+    const auto received = recv(udp.get(), buffer.data(), buffer.size(), 0);
+    if(received < 0)
+      break; // e.g. ECONNREFUSED: nothing listens there, fail fast.
+    dex::Response response;
+    if(dex::decode_response({buffer.data(), static_cast<std::size_t>(received)}, response) != dex::Error::None ||
+       response.command != command)
+    {
+      count(&Counters::invalid);
+      continue;
+    }
+    count(&Counters::received);
+    return Reply{response.result, {response.data.data, response.data.data + response.data.size},
+                 {buffer.data(), buffer.data() + received}};
   }
-  return reply;
+  count(&Counters::timeouts);
+  return std::nullopt;
 }
 
 void DexLink::broadcast(dex::CommandId command, std::uint16_t port)
 {
+  // From the listening socket: discovery replies arrive there as unsolicited Info.
   const auto header = static_cast<std::uint8_t>(command);
-  send_to({htonl(INADDR_BROADCAST), port}, {&header, 1});
+  const auto target = address_of({htonl(INADDR_BROADCAST), port});
+  if(sendto(fd_, &header, 1, 0, reinterpret_cast<const sockaddr *>(&target), sizeof(target)) == 1)
+    count(&Counters::sent);
 }
 
 DexLink::Counters DexLink::counters() const
@@ -146,28 +190,14 @@ void DexLink::receive_loop()
     dex::Response response;
     if(dex::decode_response({buffer.data(), static_cast<std::size_t>(received)}, response) != dex::Error::None)
     {
-      std::lock_guard lock(mutex_);
-      ++counters_.invalid;
+      count(&Counters::invalid);
       continue;
     }
-    Reply reply{response.result, {response.data.data, response.data.data + response.data.size},
-                {buffer.data(), buffer.data() + received}};
-    const Endpoint from{sender.sin_addr.s_addr, ntohs(sender.sin_port)};
-    bool matched = false;
-    {
-      std::lock_guard lock(mutex_);
-      ++counters_.received;
-      for(auto it = pending_.begin(); it != pending_.end(); ++it)
-        if(it->ip == from.ip && it->command == response.command)
-        {
-          it->promise.set_value(reply);
-          pending_.erase(it);
-          matched = true;
-          break;
-        }
-    }
-    if(!matched && unsolicited_)
-      unsolicited_(from, response.command, reply);
+    count(&Counters::received);
+    const Reply reply{response.result, {response.data.data, response.data.data + response.data.size},
+                      {buffer.data(), buffer.data() + received}};
+    if(unsolicited_)
+      unsolicited_({sender.sin_addr.s_addr, ntohs(sender.sin_port)}, response.command, reply);
   }
 }
 } // namespace hub

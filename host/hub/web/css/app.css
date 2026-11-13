@@ -177,6 +177,8 @@ input, select, textarea {
 }
 input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 input[type="checkbox"] { accent-color: var(--accent); }
+input:disabled, select:disabled { opacity: 0.55; cursor: not-allowed; background: transparent; border-style: dashed; }
+fieldset .hint { display: block; font-size: 11.5px; color: var(--faint); margin: -2px 0 4px; }
 .field { display: grid; grid-template-columns: minmax(140px, 220px) 1fr; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px dashed var(--border); }
 .field:last-child { border-bottom: 0; }
 .field label { font-weight: 550; }

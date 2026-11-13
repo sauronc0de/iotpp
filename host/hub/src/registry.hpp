@@ -26,7 +26,10 @@ struct PeripheralType
 
   // Codecs operate on the payload that follows the peripheral ID byte.
   std::function<json(dex::Bytes)> decodeStatus, decodeConfig, decodeMonitoring;
-  std::function<Buffer(const json &)> encodeConfig, encodeAction;
+  // Config write: device values + user changes (read-only fields frozen,
+  // ranges and the peripheral's DEX `valid()` rule checked before sending).
+  std::function<Buffer(const json &current, const json &changes)> encodeConfig;
+  std::function<Buffer(const json &)> encodeAction;
   std::function<Buffer(const json &)> defaultAction; // Template for the action form.
 
   // Monitoring: flattened signals and their values (same order).

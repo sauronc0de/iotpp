@@ -90,6 +90,50 @@ constexpr std::tuple<F...> fields(F... f)
   return {f...};
 }
 
+// Adjust the metadata of a nested field by dotted path from the described
+// struct, e.g. `at("monitoring.samplePeriodMs").range(1000, 60000)`. Lets a
+// peripheral tighten or freeze a shared sub-struct without redefining it.
+// A read-only path freezes its whole subtree. Overrides add no bytes.
+struct Override
+{
+  const char *path = "";
+  double min = 0, max = 0;
+  bool hasRange = false;
+  bool readOnly = false;
+  const char *doc = nullptr;
+
+  constexpr Override range(double lo, double hi) const
+  {
+    Override copy = *this;
+    copy.min = lo;
+    copy.max = hi;
+    copy.hasRange = true;
+    return copy;
+  }
+  constexpr Override readonly() const
+  {
+    Override copy = *this;
+    copy.readOnly = true;
+    return copy;
+  }
+  constexpr Override describe(const char *text) const
+  {
+    Override copy = *this;
+    copy.doc = text;
+    return copy;
+  }
+};
+
+constexpr Override at(const char *path)
+{
+  Override o{};
+  o.path = path;
+  return o;
+}
+
+// Peripheral traits may also declare `static bool valid(const Config &)`:
+// the cross-field rule shared by firmware and hosts (checked before sending).
+
 // Feature placeholder in peripheral traits (e.g. `using Action = None;`).
 struct None
 {

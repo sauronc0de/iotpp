@@ -36,6 +36,7 @@ constexpr auto dex_describe(const ConfigData *)
 {
   using Self = ConfigData;
   return meta::fields(meta::base<peripheral::ConfigData>(),
+                      meta::at("monitoring").readonly().describe("Fixed acquisition profile"),
                       DEX_FIELD(enabled).boolean().doc("Door monitoring and Deep Sleep"));
 }
 

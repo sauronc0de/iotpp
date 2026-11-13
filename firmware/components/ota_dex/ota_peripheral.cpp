@@ -49,7 +49,7 @@ dex::ProcessResult OtaPeripheral::process(const dex::Request &request, std::uint
     if(data.size)
     {
       dex::Mew::ConfigData candidate;
-      if(dex::decode_data(data, candidate) != dex::Error::None || candidate.intervalSeconds > 2592000)
+      if(dex::decode_data(data, candidate) != dex::Error::None || !dex::Mew::valid_config(candidate))
         return reply(dex::Error::InvalidParameter);
       if(ota::configure({candidate.intervalSeconds}) != ESP_OK)
         return reply(dex::Error::StorageFailed);
